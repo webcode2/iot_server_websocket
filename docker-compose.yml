@@ -1,0 +1,114 @@
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: myapp:latest
+    container_name: myapp_container
+    networks:
+      - app_network
+    ports:
+      - "3000:3000"
+    secrets:
+      - db_password
+      - app_secret
+      - superuser_password
+      - superuser_email
+
+    env_file:
+      - /.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+
+      PORT: ${PORT}
+      NODE_ENV: ${NODE_ENV}
+      SECRET_FILE: /run/secrets/app_secret
+        
+      SUPERUSER_EMAIL_FILE: /run/secrets/superuser_email
+      SUPERUSER_PASSWORD_FILE: /run/secrets/superuser_password
+    
+    
+    command: >
+      sh -c "
+        # Wait for database
+        while ! nc -z db 5432; do sleep 2; done;
+        
+        # Construct database URL from components
+        DB_URL=\"postgres://${DB_USER}:$$(cat /run/secrets/db_password)@db:5432/${DB_NAME}\";
+        
+        # Check if migrations table exists
+        if ! psql \"$$DB_URL\" -c \"SELECT 1 FROM information_schema.tables WHERE table_name='drizzle_migrations'\" | grep -q 1; then
+          echo 'Running initial setup...';          
+          npm run seed;
+        else
+          echo 'Database already initialized';
+        fi;
+        
+        exec npm run dev;
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+      
+    volumes:
+      - app_node_modules:/usr/app/node_modules  # For persistent node_modules
+      - ./src:/usr/app/src  # Mount your source code
+      - ./drizzle:/usr/app/drizzle
+    
+  db:
+    image: postgres:15-alpine 
+    env_file:
+      - /.env.db
+    secrets:
+      - db_password
+    networks:
+      - app_network
+    environment:
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+
+
+    ports:  
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+volumes:
+  postgres_data:
+  app_node_modules:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  superuser_email:
+    file: ./secrets/superuser_email.txt
+  superuser_password:
+    file: ./secrets/superuser_password.txt
+  app_secret:
+    file: ./secrets/app_secret.txt
+  
+networks:
+  app_network:
+    driver: bridge
+    

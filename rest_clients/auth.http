@@ -1,0 +1,38 @@
+
+###
+# IOT DEVIES
+POST http://localhost:3000/api/auth/device/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "id":"423f5ad3-f24d-40fa-bd96-f0bf58d05fff","password":"password123"
+}
+
+
+###
+# Users App 
+POST http://localhost:3000/api/auth/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "email":"princ@me.us","password":"password123"
+}
+
+###
+POST http://localhost:3000/api/auth/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "email":"me@yu.us","password":"12345678"
+}
+
+###
+POST http://localhost:3000/api/auth/register HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "me@yu.us",
+    "password": "12345678",
+    "name": "yu"
+}
+
