@@ -17,7 +17,7 @@ services:
       - superuser_email
 
     env_file:
-      - /.env
+      - ./.env
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -68,7 +68,7 @@ services:
   db:
     image: postgres:15-alpine 
     env_file:
-      - /.env
+      - ./.env
     secrets:
       - db_password
     networks:
