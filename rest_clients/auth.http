@@ -1,7 +1,7 @@
 
 ###
 # IOT DEVIES
-POST http://localhost:3000/api/auth/device/login/ HTTP/1.1
+POST https://iot-server-g1bs.onrender.com/api/auth/device/login/ HTTP/1.1
 Content-Type: application/json
 
 {
