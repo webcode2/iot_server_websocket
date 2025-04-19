@@ -112,6 +112,8 @@ services:
 volumes:
   postgres_data:
   app_node_modules:
+  caddy_config:
+  caddy_data:
 
 secrets:
   db_password:
