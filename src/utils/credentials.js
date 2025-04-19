@@ -19,12 +19,12 @@ class CredentialsLoader {
 
   loadSecrets() {
     const secretMappings = [
-      { secretPath: '/run/secrets/db_user', envVar: 'DB_USER', target: 'dbUser' },
-      { secretPath: '/run/secrets/db_password', envVar: 'DB_PASSWORD', target: 'dbPassword' },
-      { secretPath: '/run/secrets/db_name', envVar: 'DB_NAME', target: 'dbName' },
-      { secretPath: '/run/secrets/app_secret', envVar: 'SECRET', target: 'app_secret' },
-      { secretPath: '/run/secrets/superuser_password', envVar: 'SUPERUSER_PASSWORD', target: 'superuser_password' },
-      { secretPath: '/run/secrets/superuser_email', envVar: 'SUPERUSER_EMAIL', target: 'superuser_email' }
+      { secretPath: '/etc/secrets/db_user', envVar: 'DB_USER', target: 'dbUser' },
+      { secretPath: '/etc/secrets/db_password', envVar: 'DB_PASSWORD', target: 'dbPassword' },
+      { secretPath: '/etc/secrets/db_name', envVar: 'DB_NAME', target: 'dbName' },
+      { secretPath: '/etc/secrets/app_secret', envVar: 'SECRET', target: 'app_secret' },
+      { secretPath: '/etc/secrets/superuser_password', envVar: 'SUPERUSER_PASSWORD', target: 'superuser_password' },
+      { secretPath: '/etc/secrets/superuser_email', envVar: 'SUPERUSER_EMAIL', target: 'superuser_email' }
     ];
 
     secretMappings.forEach(({ secretPath, envVar, target }) => {

@@ -64,11 +64,11 @@ services:
       - app_node_modules:/usr/app/node_modules  # For persistent node_modules
       - ./src:/usr/app/src  # Mount your source code
       - ./drizzle:/usr/app/drizzle
-    
+
   db:
     image: postgres:15-alpine 
     env_file:
-      - /.env.db
+      - /.env
     secrets:
       - db_password
     networks:
