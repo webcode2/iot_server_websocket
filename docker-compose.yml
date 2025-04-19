@@ -78,7 +78,7 @@ services:
     depends_on:
       - app
     networks:
-      - my_network
+      - app_network
 
   db:
     image: postgres:15-alpine 
