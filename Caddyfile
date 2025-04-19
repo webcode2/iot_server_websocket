@@ -1,0 +1,32 @@
+iot.codeabs.com {
+    # Handle HTTP requests
+    reverse_proxy app:3000 {
+        # Standard headers
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+
+        # WebSocket support (will auto-detect)
+        transport http {
+            versions h2c 2 1.1
+        }
+    }
+
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+        # Prevent MIME sniffing
+        X-Content-Type-Options "nosniff"
+        # Frame options
+        X-Frame-Options "SAMEORIGIN"
+        # CSP
+        Content-Security-Policy "default-src 'self'"
+    }
+
+    # Compression
+    encode gzip zstd
+}
