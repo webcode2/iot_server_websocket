@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
+const { Server } = require('socket.io');
+
 const cors = require('cors');
 const iotRoutes = require("./router/iot_Routes.js")
 const authRoutes = require("./router/authRoutes.js")
@@ -12,12 +13,23 @@ const socketManager = require("./utils/socket_manager.js")
 const app = express();
 const server = http.createServer(app);
 
-const io = socketIo(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
-   transports: ["websocket"], // Force WebSocket only
-  allowEIO3: true, // Enable v2/v3 compatibility
-  path: "/socket.io"
+// const io = socketIo(server, {
+//   cors: { origin: "*", methods: ["GET", "POST"] },
+//    transports: ["websocket"], // Force WebSocket only
+//   allowEIO3: true, // Enable v2/v3 compatibility
+//   path: "/socket.io"
+// });
+
+
+const io = new Server(server, {
+  cors: {
+    origin: ["https://iot.codeabs.com"],
+    methods: ["GET", "POST"]
+  },
+  transports: ["websocket"], // Force WebSocket only
+  path: "/socket.io/" // Must match Caddy path
 });
+
 socketManager.init(io)
 // Middleware
 app.use(express.json());
@@ -67,9 +79,9 @@ async function startApp() {
 
     // Run migrations
 
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    server.listen(3000, '0.0.0.0', () => {
+      console.log('Server ready on port 3000');
+    })
   } catch (err) {
     console.error('Failed to start:', err);
     process.exit(1);
