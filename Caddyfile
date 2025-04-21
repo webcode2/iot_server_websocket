@@ -2,10 +2,10 @@
     debug
 }
 
-iot.codeabs.com {
+iot.codeabs.com{
     # Route WebSocket traffic to the Socket.IO server
     handle_path /socket.io/* {
-        reverse_proxy chat_app:3000 {
+        reverse_proxy app:3000 {
             header_up Host {host}
             header_up X-Forwarded-For {remote}
             # Enable WebSocket support
@@ -14,7 +14,7 @@ iot.codeabs.com {
         }
     }
 
-    # Route HTTP traffic to the  app
+    # Route HTTP traffic to the Marketplace app
     reverse_proxy app:3000 {
         header_up Host {host}
         header_up X-Forwarded-For {remote}

@@ -1,7 +1,7 @@
 
 ###
 # IOT DEVIES
-POST https://iot-server-g1bs.onrender.com/api/auth/device/login/ HTTP/1.1
+POST https://iot.codeabs.com/api/auth/device/login/ HTTP/1.1
 Content-Type: application/json
 
 {
@@ -11,7 +11,7 @@ Content-Type: application/json
 
 ###
 # Users App 
-POST http://localhost:3000/api/auth/login/ HTTP/1.1
+POST http://iot.codeabs.com/api/auth/login/ HTTP/1.1
 Content-Type: application/json
 
 {
@@ -19,7 +19,7 @@ Content-Type: application/json
 }
 
 ###
-POST http://localhost:3000/api/auth/login/ HTTP/1.1
+POST http://iot.codeabs.com/api/auth/login/ HTTP/1.1
 Content-Type: application/json
 
 {
@@ -27,7 +27,7 @@ Content-Type: application/json
 }
 
 ###
-POST http://localhost:3000/api/auth/register HTTP/1.1
+POST http://iot.codeabs.com/api/auth/register HTTP/1.1
 Content-Type: application/json
 
 {
