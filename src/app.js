@@ -11,7 +11,11 @@ const socketManager = require("./utils/socket_manager.js")
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
+const io = socketIo(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] }, transports: ["websocket"], // Force WebSocket only
+  allowEIO3: true, // Enable v2/v3 compatibility
+  path: "/socket.io"
+});
 socketManager.init(io)
 // Middleware
 app.use(express.json());
@@ -24,10 +28,10 @@ io.use(socketAuthMiddleware);
 io.on('connection', (socket) => {
   registerNewConnection(socket)
   // Send direct message
-  socket.on('direct-message', ({recipientId,message})=>socketDM(recipientId,message,socket));  
+  socket.on('direct-message', ({ recipientId, message }) => socketDM(recipientId, message, socket));
   // Send attendance data
-  socket.on('attendance-data', ({deviceId})=>socketRetreiveTodaysAttendance({deviceId:deviceId,userId:socket.user.id}));
-  socket.on('add_attendance_log', (data)=>addAttendantLog({deviceId:socket.user.id,data:data}));
+  socket.on('attendance-data', ({ deviceId }) => socketRetreiveTodaysAttendance({ deviceId: deviceId, userId: socket.user.id }));
+  socket.on('add_attendance_log', (data) => addAttendantLog({ deviceId: socket.user.id, data: data }));
 
 
   // Handle disconnection
