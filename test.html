@@ -94,7 +94,8 @@
       statusEl.textContent = "Connecting...";
       statusEl.className = "status";
 
-      socket = io("https://iot.codeabs.com", {
+      socket = io("wss://iot.codeabs.com", {
+         reconnection: 6, 
         transports: ['websocket'],
         extraHeaders: {
           Authorization: `Bearer ${jwt}`
@@ -120,4 +121,3 @@
   </script>
 </body>
 </html>
-  

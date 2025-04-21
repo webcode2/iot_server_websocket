@@ -1,29 +1,14 @@
 iot.codeabs.com {
-    log
-    encode gzip
-    tls saviorisrae@codeabse.com
-
-    @socketio {
-        path /socket.io/*
-    }
-
-    reverse_proxy @socketio app:3000 {
-        transport http {
-            versions h2c 1.1
-        }
+    reverse_proxy /socket.io/* app:3000 {
         header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-        header_up Connection "upgrade"
+        header_up X-Forwarded-For {remote}
+        header_up Connection {>Connection}
         header_up Upgrade {>Upgrade}
     }
 
     reverse_proxy app:3000 {
         header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote}
         header_down Strict-Transport-Security "max-age=31536000;"
     }
 }

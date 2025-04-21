@@ -11,8 +11,10 @@ const socketManager = require("./utils/socket_manager.js")
 
 const app = express();
 const server = http.createServer(app);
+
 const io = socketIo(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }, transports: ["websocket"], // Force WebSocket only
+  cors: { origin: "*", methods: ["GET", "POST"] },
+   transports: ["websocket"], // Force WebSocket only
   allowEIO3: true, // Enable v2/v3 compatibility
   path: "/socket.io"
 });
