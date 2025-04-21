@@ -1,18 +1,31 @@
 iot.codeabs.com {
+    # Handle HTTP requests
     reverse_proxy app:3000 {
-        # Remove redundant header_up directives (Caddy handles these by default)
+        # Standard headers (simplified - Caddy handles X-Forwarded-* automatically)
         header_up Host {host}
-        
-        # Configure HTTP/2 frame size
+        header_up X-Real-IP {remote}
+
+        # Transport configuration must be at the end of the reverse_proxy block
         transport http {
-            http2_max_frame_size 65536  # 64KB frame size
-            versions h2 1.1             # Enable both HTTP/2 and HTTP/1.1
+            http2_max_frame_size 65536  # 64KB instead of 16KB
+            versions h2 1.1
         }
     }
 
-    # Security headers (optional)
+    # Security headers
     header {
-        Strict-Transport-Security "max-age=31536000;"
+        # Enable HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+        # Prevent MIME sniffing
         X-Content-Type-Options "nosniff"
+        # Frame options
+        X-Frame-Options "SAMEORIGIN"
+        # CSP
+        Content-Security-Policy "default-src 'self'"
     }
+
+    # Compression
+    encode gzip zstd
 }
