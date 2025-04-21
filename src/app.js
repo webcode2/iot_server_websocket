@@ -23,6 +23,14 @@ app.use(express.urlencoded({ extended: true, }));
 app.use(cors());
 app.use(express.static('public'));
 
+app.use((req, res, next) => {
+  const ip =
+    req.headers['x-forwarded-for']?.split(',').shift() || 
+    req.socket?.remoteAddress;
+    
+  console.log(`Incoming request from IP: ${ip}`);
+  next();
+})
 
 io.use(socketAuthMiddleware);
 io.on('connection', (socket) => {
