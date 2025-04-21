@@ -5,7 +5,7 @@ POST https://iot.codeabs.com/api/auth/device/login/ HTTP/1.1
 Content-Type: application/json
 
 {
-    "id":"423f5ad3-f24d-40fa-bd96-f0bf58d05fff","password":"password123"
+    "id":"5682e637-2f29-403f-8383-4b8f3f6b2f82","password":"12345678"
 }
 
 

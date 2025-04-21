@@ -8,6 +8,7 @@ let onlineUsers = new Set();
 // r
 
 async function socketAuthMiddleware(socket, next) {
+  console.log(socket)
   const token =
     socket.handshake.auth.token ||               // Auth object (recommended)
     socket.handshake.query.token ||             // Query parameter
@@ -37,7 +38,6 @@ async function socketAuthMiddleware(socket, next) {
 const registerNewConnection = async (socket) => {
   socket.join(`user_${socket.user.id}`);
   onlineUsers.add(socket.user.id);
-
 }
 
 const socketDM = async (recipientId, message, socket) => {
