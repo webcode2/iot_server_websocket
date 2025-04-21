@@ -1,3 +1,4 @@
+
 iot.codeabs.com {
     # Handle HTTP requests
     reverse_proxy app:3000 {
@@ -9,7 +10,10 @@ iot.codeabs.com {
 
         # WebSocket support (will auto-detect)
         transport http {
-            versions h2c 2 1.1
+            http2_max_frame_size 65536  # 64KB instead of 16KB
+            http2_max_header_size 65536
+            versions h2 1.1  # Keep HTTP/2 enabled
+
         }
     }
 
