@@ -1,31 +1,23 @@
-iot.codeabs.com {
-    # Handle HTTP requests
-    reverse_proxy app:3000 {
-        # Standard headers (simplified - Caddy handles X-Forwarded-* automatically)
-        header_up Host {host}
-        header_up X-Real-IP {remote}
+{
+    debug
+}
 
-        # Transport configuration must be at the end of the reverse_proxy block
-        transport http {
-            http2_max_frame_size 65536  # 64KB instead of 16KB
-            versions h2 1.1
+iot.codeabs.com {
+    # Route WebSocket traffic to the Socket.IO server
+    handle_path /socket.io/* {
+        reverse_proxy chat_app:3000 {
+            header_up Host {host}
+            header_up X-Forwarded-For {remote}
+            # Enable WebSocket support
+            header_up Connection "Upgrade"
+            header_up Upgrade "websocket"
         }
     }
 
-    # Security headers
-    header {
-        # Enable HSTS
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        # XSS Protection
-        X-XSS-Protection "1; mode=block"
-        # Prevent MIME sniffing
-        X-Content-Type-Options "nosniff"
-        # Frame options
-        X-Frame-Options "SAMEORIGIN"
-        # CSP
-        Content-Security-Policy "default-src 'self'"
+    # Route HTTP traffic to the  app
+    reverse_proxy app:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-For {remote}
+        header_down Strict-Transport-Security "max-age=31536000;"
     }
-
-    # Compression
-    encode gzip zstd
-}
+}   
