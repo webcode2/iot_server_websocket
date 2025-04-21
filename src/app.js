@@ -32,6 +32,7 @@ app.use((req, res, next) => {
   next();
 })
 
+
 io.use(socketAuthMiddleware);
 io.on('connection', (socket) => {
   registerNewConnection(socket)
