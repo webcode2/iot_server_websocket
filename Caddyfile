@@ -1,14 +1,34 @@
-iot.codeabs.com {
-    reverse_proxy /socket.io/* app:3000 {
-        header_up Host {host}
-        header_up X-Forwarded-For {remote}
-        header_up Connection {>Connection}
-        header_up Upgrade {>Upgrade}
+{
+    debug
+    auto_https disable_redirects
+    admin localhost:2019
+}
+
+:80 { 
+    # WebSocket endpoint
+    handle /socket.io/* {
+        reverse_proxy app:3000 {
+            transport http {
+                versions 1.1
+            }
+            # Headers must be at this level, not inside transport
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up Connection "Upgrade"
+            header_up Upgrade "websocket"
+        }
     }
 
+    # Regular HTTP traffic
     reverse_proxy app:3000 {
         header_up Host {host}
         header_up X-Forwarded-For {remote}
-        header_down Strict-Transport-Security "max-age=31536000;"
+    # header_down Strict-Transport-Security "max-age=31536000;"
+    }
+
+    log {
+        output stdout
+        format console  
+        level DEBUG
     }
 }
