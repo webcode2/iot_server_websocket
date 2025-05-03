@@ -3,16 +3,14 @@ const { db } = require("../db/config");
 const { iotDevices, developer } = require("../db/schema");
 const { eq } = require("drizzle-orm")
 const jwt = require("jsonwebtoken");
-const { password } = require("pg/lib/defaults");
 const credentials = require("../utils/credentials");
 require('dotenv').config();
 
 
-async function generateToken({ account_name, account_id }) {
-    if (!credentials.app_secret) {
-        throw new Error('SECRET environment variable is not set');
-    }
-    return jwt.sign({ id: account_id, name: account_name }, credentials.app_secret, {
+async function generateToken(data=undefined) {
+    if (!credentials.app_secret)         throw new Error('SECRET environment variable is not set');
+    if (data===undefined) throw new Error("jwt payload isn't attached")
+    return jwt.sign({...data}, credentials.app_secret, {
         expiresIn: '30d'
     });
 }
@@ -23,7 +21,7 @@ const authLogin = async (req, res) => {
         if (data) {
             if (bcrypt.compareSync(req.body.password, data.password)) {
 
-                return res.status(200).json({ jwt_token: await generateToken({ account_name: data.name, account_id: data.id }), ...data, password: undefined });
+                return res.status(200).json({ jwt_token: await generateToken({ account_name: data.name, account_id: data.id, account_type: "developer" }), ...data, password: undefined });
             }
         }
         return res.status(401).json({ error: "Invalid email or password" });
@@ -36,7 +34,7 @@ const deviceAuthLogin = async (req, res) => {
         if (data) {
             if (bcrypt.compareSync(req.body.password, data.password)) {
 
-                return res.status(200).json({ jwt_token: await generateToken({ account_name: data.name, account_id: data.id }), ...data, password: undefined });
+                return res.status(200).json({ jwt_token: await generateToken({ account_name: data.name, account_id: data.id, account_type: "device",developer_id:data.developerId }), ...data, password: undefined });
             }
         }
         return res.status(401).json({ error: "Invalid email or password" });
@@ -63,10 +61,10 @@ const authRegister = async (req, res) => {
 
         // Insert device
         const [device] = await db.insert(iotDevices).values({
-                name: req.body.name,
-                password: hashedPassword,
-                developerId: dev.id
-            })
+            name: req.body.name,
+            password: hashedPassword,
+            developerId: dev.id
+        })
             .returning();
 
         // Create clean response objects
@@ -89,7 +87,8 @@ const authRegister = async (req, res) => {
             ...cleanDev,
             jwt_token: await generateToken({
                 account_name: dev.name,
-                account_id: dev.id
+                account_id: dev.id,account_type:"developer"
+                
             }),
             device: cleanDevice
         });
@@ -148,4 +147,4 @@ const authForgot = async (req, res) => {
 }
 
 
-module.exports = { authRegister, authLogin, authReset, authForgot,deviceAuthLogin }
+module.exports = { authRegister, authLogin, authReset, authForgot, deviceAuthLogin }

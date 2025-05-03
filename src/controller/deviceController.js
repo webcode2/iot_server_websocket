@@ -1,6 +1,6 @@
 const { sql, eq, gte, lt, and } = require("drizzle-orm");
 const { db } = require("../db/config");
-const { iotData } = require("../db/schema");
+const { iotData, iotDevices } = require("../db/schema");
 const { startOfDay, endOfDay } = require('date-fns');
 
 // const { eq } = require("drizzle-orm")
@@ -25,7 +25,7 @@ async function getPaginatedLogData({ appId = "", page = 1, perPage = 40, startDa
         end = getTodayRange({ start: startDate, end: endDate }).end
     } else if (startDate) {
         start = getTodayRange({ start: startDate }).start
-    }else if (endDate) {
+    } else if (endDate) {
         end = getTodayRange({ end: endDate }).end
     }
 
@@ -62,8 +62,29 @@ async function getPaginatedLogData({ appId = "", page = 1, perPage = 40, startDa
 }
 
 
+async function getUserDevices({ developer_id = "" }) {
+    try {
 
-async function addNewLog({appId, data}) {
+        devices = await db.query.iotDevices.findMany({
+            where: (iot_devices, { eq }) => eq(iotDevices.developerId, developer_id), columns: {
+                developerId: true,
+                name: true,
+                id: true,
+                password: false,
+                createdAt: false
+            }
+        })
+        return devices
+    } catch (err) {
+        console.log(err)
+        return []
+    }
+
+}
+
+
+
+async function addNewLog({ appId, data }) {
     try {
         await db.insert(iotData).values({ appId: appId, logData: data }).returning()
         return true;
@@ -97,5 +118,6 @@ async function getLogsByDate({ appId, startDate, endDate = new Date() }) {
 module.exports = {
     addNewLog
     , getTodayLogs,
-    getAllLogs
+    getAllLogs,
+    getUserDevices,
 }

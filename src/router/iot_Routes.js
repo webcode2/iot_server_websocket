@@ -1,6 +1,5 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
-const IoTModel = require('../models/iotModels.js');
 const router = express.Router();
 
 // Create new IoT device

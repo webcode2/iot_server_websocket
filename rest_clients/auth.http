@@ -1,17 +1,17 @@
 
 ###
 # IOT DEVIES
-POST http://localhost/api/auth/device/login/ HTTP/1.1
+POST http://localhost:3000/api/auth/device/login/ HTTP/1.1
 Content-Type: application/json
 
 {
-    "id":"5682e637-2f29-403f-8383-4b8f3f6b2f82","password":"12345678"
+    "id":"4249266a-774a-4fa3-b410-0aa25360be31","password":"12345678"
 }
 
 
 ###
 # Users App 
-POST http://localhost:80/api/auth/login/ HTTP/1.1
+POST http://localhost:3000/api/auth/login/ HTTP/1.1
 Content-Type: application/json
 
 {
@@ -19,7 +19,7 @@ Content-Type: application/json
 }
 
 ###
-POST http://localhost:80/api/auth/login/ HTTP/1.1
+POST http://localhost:3000/api/auth/login/ HTTP/1.1
 Content-Type: application/json
 
 {
@@ -27,7 +27,7 @@ Content-Type: application/json
 }
 
 ###
-POST http://localhost:80/api/auth/register HTTP/1.1
+POST http://localhost:3000/api/auth/register HTTP/1.1
 Content-Type: application/json
 
 {

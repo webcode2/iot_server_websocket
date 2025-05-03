@@ -13,22 +13,22 @@ const socketManager = require("./utils/socket_manager.js")
 const app = express();
 const server = http.createServer(app);
 
-// const io = socketIo(server, {
-//   cors: { origin: "*", methods: ["GET", "POST"] },
-//    transports: ["websocket"], // Force WebSocket only
-//   allowEIO3: true, // Enable v2/v3 compatibility
-//   path: "/socket.io"
-// });
-
-
 const io = new Server(server, {
-  cors: {
-    origin: ["https://iot.codeabs.com"],
-    methods: ["GET", "POST"]
-  },
-  transports: ["websocket"], // Force WebSocket only
-  path: "/socket.io/" // Must match Caddy path
+  cors: { origin: "*", methods: ["GET", "POST"] },
+   transports: ["websocket"], // Force WebSocket only
+  // allowEIO3: true, // Enable v2/v3 compatibility
+  path: "/socket.io"
 });
+
+
+// const io = new Server(server, {
+//   cors: {
+//     origin: ["https://iot.codeabs.com"],
+//     methods: ["GET", "POST"]
+//   },
+//   transports: ["websocket"], // Force WebSocket only
+//   path: "/socket.io/" // Must match Caddy path
+// });
 
 socketManager.init(io)
 // Middleware
@@ -48,12 +48,15 @@ app.use((req, res, next) => {
 
 
 io.use(socketAuthMiddleware);
-io.on('connection', (socket) => {
-  registerNewConnection(socket)
+io.on('connection', async(socket) => {
+  await registerNewConnection(socket)
   // Send direct message
-  socket.on('direct-message', ({ recipientId, message }) => socketDM(recipientId, message, socket));
+  socket.on('direct_message', ({ recipientId, message }) => {
+    console.log(`message received from: ${JSON.stringify(socket.user)}`)
+
+    return socketDM(recipientId, message, socket)});
   // Send attendance data
-  socket.on('attendance-data', ({ deviceId }) => socketRetreiveTodaysAttendance({ deviceId: deviceId, userId: socket.user.id }));
+  socket.on('attendance_data', ({ deviceId }) => socketRetreiveTodaysAttendance({ deviceId: deviceId, userId: socket.user.id }));
   socket.on('add_attendance_log', (data) => addAttendantLog({ deviceId: socket.user.id, data: data }));
 
 
