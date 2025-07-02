@@ -1,90 +1,119 @@
+// === IMPORTS ===
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
+const WebSocket = require('ws');
 
 const cors = require('cors');
-const iotRoutes = require("./router/iot_Routes.js")
-const authRoutes = require("./router/authRoutes.js")
-const { pool, } = require('./db/config');
-const { socketDM, socketDisconect, registerNewConnection, socketRetreiveTodaysAttendance, addAttendantLog, socketAuthMiddleware } = require("./socket/socketController.js");
-const socketManager = require("./utils/socket_manager.js")
+const iotRoutes = require("./router/iot_Routes.js");
+const authRoutes = require("./router/authRoutes.js");
+const { pool } = require('./db/config');
+const {
+  socketDM,
+  socketDisconect,
+  registerNewConnection,
+  socketRetreiveTodaysAttendance,
+  addAttendantLog,
+  socketAuthMiddleware
+} = require("./socket/socketController.js");
 
-
+// === EXPRESS + HTTP SERVER ===
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
-   transports: ["websocket"], // Force WebSocket only
-  // allowEIO3: true, // Enable v2/v3 compatibility
-  path: "/socket.io"
-});
+// === WEBSOCKET SERVER ===
+const wss = new WebSocket.Server({ noServer: true });
 
-
-// const io = new Server(server, {
-//   cors: {
-//     origin: ["https://iot.codeabs.com"],
-//     methods: ["GET", "POST"]
-//   },
-//   transports: ["websocket"], // Force WebSocket only
-//   path: "/socket.io/" // Must match Caddy path
-// });
-
-socketManager.init(io)
-// Middleware
+// === Middleware ===
 app.use(express.json());
-app.use(express.urlencoded({ extended: true, }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(express.static('public'));
 
+// === Logging ===
 app.use((req, res, next) => {
-  const ip =
-    req.headers['x-forwarded-for']?.split(',').shift() || 
-    req.socket?.remoteAddress;
-    
+  const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.socket?.remoteAddress;
   console.log(`Incoming request from IP: ${ip}`);
   next();
-})
+});
 
+// === REST ROUTES ===
+app.use('/api/iot', iotRoutes);
+app.use('/api/auth', authRoutes);
+app.get('/', (req, res) => res.json({ message: 'Welcome to the Home Assistant API' }));
 
-io.use(socketAuthMiddleware);
-io.on('connection', async(socket) => {
-  await registerNewConnection(socket)
-  // Send direct message
-  socket.on('direct_message', ({ recipientId, message }) => {
-    console.log(`message received from: ${JSON.stringify(socket.user)}`)
+// === Upgrade handler for WS ===
+server.on('upgrade', async (request, socket, head) => {
+  try {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const token =
+      url.searchParams.get('token') ||
+      (request.headers.authorization && request.headers.authorization.split(' ')[1]);
 
-    return socketDM(recipientId, message, socket)});
-  // Send attendance data
-  socket.on('attendance_data', ({ deviceId }) => socketRetreiveTodaysAttendance({ deviceId: deviceId, userId: socket.user.id }));
-  socket.on('add_attendance_log', (data) => addAttendantLog({ deviceId: socket.user.id, data: data }));
+    const user = await socketAuthMiddleware(token);
+    if (!user) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
 
-
-  // Handle disconnection
-  socket.on('disconnect', _ => socketDisconect(socket));
-
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.user = user; // Attach user for later use
+      wss.emit('connection', ws, request);
+    });
+  } catch (err) {
+    console.error('Upgrade error:', err);
+    socket.destroy();
+  }
 });
 
 
+// === WebSocket connection logic ===
+wss.on('connection', async (ws, request) => {
+  console.log(`New WS connection from: ${ws.user.id}`);
+  await registerNewConnection(ws);
+  console.log("my resting messages----------------")
+  ws.on('message', async (message) => {
+    try {
+      const data = JSON.parse(message);
 
+      switch (data.type) {
+        case 'direct_message':
+          console.log(`DM from ${ws.user.id}: ${JSON.stringify(data)}`);
+          await socketDM(data.recipientId, data.message, ws, wss);
+          break;
 
+        case 'attendance_data':
+          await socketRetreiveTodaysAttendance({ deviceId: data.deviceId, userId: ws.user.id });
+          break;
 
-// Routes
-app.use('/api/iot', iotRoutes);
-app.use("/api/auth", authRoutes)
-app.get('/', (req, res) => res.json({ message: 'Welcome to the Home Assistant API' }));
-// Store connected clients and their types
+        case 'add_attendance_log':
+          await addAttendantLog({ deviceId: ws.user.id, data: data });
+          break;
 
+        default:
+          console.log('Unknown message type:', data.type);
+      }
+    } catch (err) {
+      console.error('Failed to process message:', err);
+    }
+  });
 
+  ws.on('close', () => {
+    socketDisconect(ws);
+  });
+
+  // Optional: send greeting
+  ws.send(JSON.stringify({ type: 'connection_ack', message: 'Connected successfully' }));
+});
+
+// === START SERVER ===
 const PORT = process.env.PORT || 3000;
+
 async function startApp() {
   try {
-
-    // Run migrations
-
-    server.listen(3002, '0.0.0.0', () => {
-      console.log('Server ready on port 3000');
-    })
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server ready on port ${PORT}`);
+    });
   } catch (err) {
     console.error('Failed to start:', err);
     process.exit(1);
@@ -93,7 +122,7 @@ async function startApp() {
 
 startApp();
 
-// Graceful shutdown
+// === Graceful shutdown ===
 process.on('SIGTERM', async () => {
   await pool.end();
   process.exit(0);

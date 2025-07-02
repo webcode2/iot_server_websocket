@@ -10,94 +10,126 @@ let onlineUsers = new Set();
 let onlineDevices = new Set()
 
 // r
-
-async function socketAuthMiddleware(socket, next) {
-  const token =
-    socket.handshake.auth.token ||               // Auth object (recommended)
-    socket.handshake.query.token ||             // Query parameter
-    (socket.handshake.headers.authorization &&  // Authorization header
-      socket.handshake.headers.authorization.split(' ')[1]) || // Bearer token
-    socket.request.cookies?.token;
-  if (!token) { next(new Error("Authentication error")); return; }
-
-  jwt.verify(token, credentials.app_secret, (err, decoded) => {
-    if (err) {
-      next(new Error("Authentication error"));
-      return
+async function socketAuthMiddleware(token) {
+  return new Promise((resolve, reject) => {
+    if (!token) {
+      return resolve(null);
     }
-    if (!decoded) { return next(new Error("Authentication error")); }
-    console.log(decoded)
-    socket.user = {
-      name: decoded.account_name,
-      id: decoded.account_id,
-      account_type: decoded.account_type,
-      developer_id: decoded.account_type === "device" ? decoded.developer_id : undefined
-    }; // Add user data to socket object
-    next();
-  })
-}
+    jwt.verify(token, credentials.app_secret, (err, decoded) => {
+      if (err || !decoded) return resolve(null);
 
-
-const loadDevices = async ({ socket }) => {
-  if (!socket) throw new Error("user socket is required to figure out the developer")
-  const io = socket_manager.getIO()
-  let user_devices = [...await getUserDevices({ developer_id: socket.user.id })]
-  let user_onlineDevices = user_devices.filter(device => onlineDevices.has(device.id))
-  io.to(`user_${socket.user.id}`).emit("SERVER_EVENT", {
-    sender: "SERVER",
-    devices: user_onlineDevices,
-    timestamp: new Date()
-  })
-}
-
-
-const notifyApp = async ({ developer_id, socket = undefined }) => {
-  if (!developer_id) throw new Error("developer is required to figure out the developer")
-  const io = socket_manager.getIO()
-  if (!socket) throw new Error("Socket instance not specified")
-  onlineUsers.has(developer_id) ? io.to(`user_${developer_id}`).emit("SERVER_EVENT", {
-    sender: "SERVER",
-    devices: { ...socket.user },
-    timestamp: new Date()
-  }) : null
+      const user = {
+        name: decoded.account_name,
+        id: decoded.account_id,
+        account_type: decoded.account_type,
+        developer_id: decoded.account_type === "device" ? decoded.developer_id : undefined
+      };
+      resolve(user);
+    });
+  });
 }
 
 
 
+const loadDevices = async ({ ws }) => {
+  const userId = ws.user.id;
+  const userDevices = await getUserDevices({ developer_id: userId });
+  const userOnlineDevices = userDevices.filter(device => onlineDevices.has(device.id));
+
+  if (connections.has(userId)) {
+    connections.get(userId).forEach(client => {
+      client.send(JSON.stringify({
+        type: "SERVER_EVENT",
+        sender: "SERVER",
+        devices: userOnlineDevices,
+        timestamp: new Date()
+      }));
+    });
+  }
+};
+
+const notifyApp = async ({ developer_id, ws }) => {
+  if (!developer_id) throw new Error("developer_id required");
+  if (!ws) throw new Error("ws instance required");
+
+  if (connections.has(developer_id)) {
+    connections.get(developer_id).forEach(client => {
+      client.send(JSON.stringify({
+        type: "SERVER_EVENT",
+        sender: "SERVER",
+        devices: { ...ws.user },
+        timestamp: new Date()
+      }));
+    });
+  }
+};
 
 
 
 
-const registerNewConnection = async (socket) => {
-  socket.join(`user_${socket.user.id}`);
-  socket.user.account_type == "developer" ? onlineUsers.add(socket.user.id) : onlineDevices.add(socket.user.id)
-  socket.user.account_type === "developer" ? loadDevices({ socket: socket }) : notifyApp({ developer_id: socket.user.developer_id, socket: socket })
-}
 
 
-const socketDM = async (recipientId, message, socket) => {
-  const io = socket_manager.getIO();
 
-  // Verify recipient exists and is allowed to receive messages
+
+const connections = new Map(); // userId → Set of ws connections
+
+const registerNewConnection = async (ws) => {
+  const userId = ws.user.id;
+
+  // Add connection to map
+  if (!connections.has(userId)) {
+    connections.set(userId, new Set());
+  }
+  connections.get(userId).add(ws);
+
+  // Track type
+  if (ws.user.account_type === "developer") {
+    onlineUsers.add(userId);
+    await loadDevices({ ws });
+  } else {
+    onlineDevices.add(userId);
+    await notifyApp({ developer_id: ws.user.developer_id, ws });
+  }
+  return
+};
+
+
+const socketDM = async (recipientId, message, socket, wss) => {
   if (!recipientId) {
     console.error('Recipient ID is required');
     return;
   }
-  if (!onlineUsers.has(recipientId) && !onlineDevices.has(recipientId)) {
-    console.error('Recipient is not online');
-    return;
-  }
-  console.log(socket.user)
-  io.to(`user_${recipientId}`).emit('direct_message', {
-    sender: {
-      id: socket.user.id,
-      name: socket.user.name
-    },
-    message,
-    timestamp: new Date()
+
+  let found = false;
+
+  wss.clients.forEach(client => {
+    // Check:
+    // 1. client is alive and ready
+    // 2. client has a user ID
+    if (
+      client.readyState === 1 &&
+      client.user &&
+      client.user.id === recipientId
+    ) {
+      client.send(JSON.stringify({
+        event: 'direct_message',
+        sender: {
+          id: socket.user.id,
+          name: socket.user.name
+        },
+        message,
+        timestamp: new Date()
+      }));
+
+      found = true;
+    }
   });
 
-}
+  if (!found) {
+    console.error(`Recipient ${recipientId} not online`);
+  }
+};
+
 
 
 

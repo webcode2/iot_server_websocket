@@ -28,6 +28,8 @@ const authLogin = async (req, res) => {
 
     } catch (err) { res.status(400).json({ error: err.message }); }
 }
+
+
 const deviceAuthLogin = async (req, res) => {
     try {
         data = await db.query.iotDevices.findFirst({ where: (iotDevices, { eq }) => eq(iotDevices.id, req.body.id) })
