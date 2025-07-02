@@ -16,10 +16,10 @@ RUN npm install
 COPY . .
 
 # Copy entrypoint script
-COPY docker-entrypoint.sh ./
+COPY docker_entrypoint.sh ./
 
 # Make it executable
-RUN chmod +x ./docker-entrypoint.sh
+RUN chmod +x ./docker_entrypoint.sh
 
 # Expose port
 EXPOSE 3000
