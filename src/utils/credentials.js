@@ -13,7 +13,7 @@ class CredentialsLoader {
       dbHost: process.env.DB_HOST || 'localhost',
       dbPort: process.env.DB_PORT || '5432',
       node_env: process.env.NODE_ENV || 'development',
-      dbUser: "postgres",
+      dbUser: process.env.DB_User || "postgres",
     };
   }
 

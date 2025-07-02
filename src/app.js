@@ -82,7 +82,7 @@ async function startApp() {
 
     // Run migrations
 
-    server.listen(3000, '0.0.0.0', () => {
+    server.listen(3002, '0.0.0.0', () => {
       console.log('Server ready on port 3000');
     })
   } catch (err) {
