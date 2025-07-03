@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "Running Drizzle migration..."
-exec drizzle-kit migrate
+npx drizzle-kit migrate
 
 echo "Starting Node.js app..."
 exec node src/app.js
