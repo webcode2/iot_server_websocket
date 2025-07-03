@@ -25,4 +25,4 @@ RUN chmod +x ./docker_entrypoint.sh
 EXPOSE 3000
 
 # Run the entrypoint script
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["./docker_entrypoint.sh"]
