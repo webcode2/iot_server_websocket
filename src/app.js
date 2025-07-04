@@ -76,22 +76,17 @@ wss.on('connection', async (ws, request) => {
     try {
       const data = JSON.parse(message);
 
-      switch (data.type) {
+      switch (data.event) {
         case 'direct_message':
           console.log(`DM from ${ws.user.id}: ${JSON.stringify(data)}`);
           await socketDM(data.recipientId, data.message, ws, wss);
           break;
-
-        case 'attendance_data':
-          await socketRetreiveTodaysAttendance({ deviceId: data.deviceId, userId: ws.user.id });
-          break;
-
-        case 'add_attendance_log':
-          await addAttendantLog({ deviceId: ws.user.id, data: data });
-          break;
+        case "log_attendace":
+          console.log("loggin attendance")
+          addAttendantLog({ data: data, developer_id: socket.user.developer_id })
 
         default:
-          console.log('Unknown message type:', data.type);
+          console.log('Unknown message type:', data.event);
       }
     } catch (err) {
       console.error('Failed to process message:', err);

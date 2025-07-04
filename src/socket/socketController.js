@@ -1,3 +1,5 @@
+import { setMessage } from "../controller/messageController";
+
 const { getTodayLogs, addNewLog, getUserDevices } = require("../controller/deviceController");
 const { db } = require("../db/config");
 const jwt = require('jsonwebtoken');
@@ -8,28 +10,9 @@ const { timestamp } = require("drizzle-orm/gel-core");
 
 let onlineUsers = new Set();
 let onlineDevices = new Set()
+const connections = new Map(); // userId → Set of ws connections
 
 // r
-async function socketAuthMiddleware(token) {
-  return new Promise((resolve, reject) => {
-    if (!token) {
-      return resolve(null);
-    }
-    jwt.verify(token, credentials.app_secret, (err, decoded) => {
-      if (err || !decoded) return resolve(null);
-
-      const user = {
-        name: decoded.account_name,
-        id: decoded.account_id,
-        account_type: decoded.account_type,
-        developer_id: decoded.account_type === "device" ? decoded.developer_id : undefined
-      };
-      resolve(user);
-    });
-  });
-}
-
-
 
 const loadDevices = async ({ ws }) => {
   const userId = ws.user.id;
@@ -68,10 +51,25 @@ const notifyApp = async ({ developer_id, ws }) => {
 
 
 
+async function socketAuthMiddleware(token) {
+  return new Promise((resolve, reject) => {
+    if (!token) {
+      return resolve(null);
+    }
+    jwt.verify(token, credentials.app_secret, (err, decoded) => {
+      if (err || !decoded) return resolve(null);
 
+      const user = {
+        name: decoded.account_name,
+        id: decoded.account_id,
+        account_type: decoded.account_type,
+        developer_id: decoded.account_type === "device" ? decoded.developer_id : undefined
+      };
+      resolve(user);
+    });
+  });
+}
 
-
-const connections = new Map(); // userId → Set of ws connections
 
 const registerNewConnection = async (ws) => {
   const userId = ws.user.id;
@@ -92,6 +90,12 @@ const registerNewConnection = async (ws) => {
   }
   return
 };
+
+const socketDisconect = async (socket,) => {
+  // console.log(`Client disconnected: ${socket.id}`);
+  onlineUsers.delete(socket.user.id);
+
+}
 
 
 const socketDM = async (recipientId, message, socket, wss) => {
@@ -131,44 +135,73 @@ const socketDM = async (recipientId, message, socket, wss) => {
 };
 
 
+// JAcks Library
 
 
-const addAttendantLog = async ({ deviceId, data }) => {
+const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
+  const atten = await addNewAttendance(data);
 
-  const io = socket_manager.getIO();
-  let res = await addNewLog({ appId: deviceId, data: data });
-  if (res) {
-    io.to(`user_${deviceId}`).emit('direct-message', {
-      sender: deviceId,
-      message: { status: res },
-      timestamp: new Date()
-    });
-
+  if (atten) {
+    await socketDM(developer_id, { ...atten }, socket, wss);
   }
-}
+};
 
-const socketRetreiveTodaysAttendance = async ({ deviceId = "", userId = "" }) => {
-  let data = await getTodayLogs({ appId: deviceId, socket: true })
-  const io = socket_manager.getIO();
-  io.to(`user_${userId}`).emit('direct-message', {
 
-    sender: deviceId,
-    message: { data: { ...data.data } },
-    timestamp: new Date()
+const socketRetreiveTodaysAttendance = async ({ deviceId = "", userId = "", socket, wss }) => {
+  const data = await getTodayLogs({ appId: deviceId, socket: true });
+
+  await socketDM(
+    userId,
+    { data: { ...data.data } },
+    socket,
+    wss
+  );
+};
+
+
+
+
+
+
+
+
+// TOPE Notice Boaard
+
+export const createNewNotification = async ({ payload, developerId, socket, wss }) => {
+  const { duration, message } = payload;
+  const data = await setMessage({
+    developer_id: developerId,
+    duration,
+    message
   });
-}
+
+  await socketDM(developerId, { type: "SERVER_EVENT", data }, socket, wss);
+};
+
+// get called when the board reads data
+export const ReadNotification = async ({ userId, developerId, socket, wss }) => {
+  const data = await getMessage({ developer_id: developerId });
+
+  await socketDM(userId, { event: "SERVER_EVENT", data }, socket, wss);
+
+  await socketDM(userId, {
+    event: "SERVER_EVENT",
+    data: "Your device just read from the database"
+  }, socket, wss);
+};
 
 
-const socketDisconect = async (socket,) => {
-  // console.log(`Client disconnected: ${socket.id}`);
-  onlineUsers.delete(socket.user.id);
 
-}
+
 
 module.exports = {
   socketDM,
   socketDisconect,
-  registerNewConnection, socketRetreiveTodaysAttendance
-  , addAttendantLog, socketAuthMiddleware
+  addAttendantLog,
+  ReadNotification,
+  socketAuthMiddleware,
+  createNewNotification,
+  registerNewConnection,
+  socketRetreiveTodaysAttendance,
 
 }
