@@ -159,9 +159,9 @@ export const registerStudentfinerPrint = async ({ message, socket, wss }) => {
   const id = await getLastFingerprintId()
   if (devices.length > 0) {
 
-    socketDM({ recipientId: devices[0].id, message: { action: "register", ...id }, socket, wss })
+    socketDM({ recipientId: devices[0].id, message: { action: "register", id: id.lastFingerprintId }, socket, wss })
   } else {
-    await socketDM({ recipientId: socket.user.id, message: { action: "register", ...id, status: "sent" }, socket, wss })
+    await socketDM({ recipientId: socket.user.id, message: { action: "register", id: id.lastFingerprintId, status: "sent" }, socket, wss })
   }
 }
 
