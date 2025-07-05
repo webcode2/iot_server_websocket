@@ -1,18 +1,13 @@
-import { setMessage } from "../controller/messageController";
 
-const { getTodayLogs, addNewLog, getUserDevices } = require("../controller/deviceController");
-const { db } = require("../db/config");
-const jwt = require('jsonwebtoken');
-const socket_manager = require("../utils/socket_manager");
-const credentials = require("../utils/credentials");
-const { iotDevices } = require("../db/schema");
-const { timestamp } = require("drizzle-orm/gel-core");
+import jwt from 'jsonwebtoken';
+import { addNewAttendance } from "./libraryController.js";
+import { getUserDevices } from "./deviceController.js";
+import { getMessage, setMessage } from "./messageController.js";
 
 let onlineUsers = new Set();
 let onlineDevices = new Set()
 const connections = new Map(); // userId → Set of ws connections
 
-// r
 
 const loadDevices = async ({ ws }) => {
   const userId = ws.user.id;
@@ -51,7 +46,7 @@ const notifyApp = async ({ developer_id, ws }) => {
 
 
 
-async function socketAuthMiddleware(token) {
+export const socketAuthMiddleware = async (token) => {
   return new Promise((resolve, reject) => {
     if (!token) {
       return resolve(null);
@@ -71,7 +66,7 @@ async function socketAuthMiddleware(token) {
 }
 
 
-const registerNewConnection = async (ws) => {
+export const registerNewConnection = async (ws) => {
   const userId = ws.user.id;
 
   // Add connection to map
@@ -91,14 +86,14 @@ const registerNewConnection = async (ws) => {
   return
 };
 
-const socketDisconect = async (socket,) => {
+export const socketDisconect = async (socket,) => {
   // console.log(`Client disconnected: ${socket.id}`);
   onlineUsers.delete(socket.user.id);
 
 }
 
 
-const socketDM = async (recipientId, message, socket, wss) => {
+export const socketDM = async ({ recipientId, message, socket, wss }) => {
   if (!recipientId) {
     console.error('Recipient ID is required');
     return;
@@ -138,25 +133,14 @@ const socketDM = async (recipientId, message, socket, wss) => {
 // JAcks Library
 
 
-const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
+export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
   const atten = await addNewAttendance(data);
 
   if (atten) {
-    await socketDM(developer_id, { ...atten }, socket, wss);
+    await socketDM({ recipientId: developer_id, message: { ...atten }, socket: socket, wss: wss });
   }
 };
 
-
-const socketRetreiveTodaysAttendance = async ({ deviceId = "", userId = "", socket, wss }) => {
-  const data = await getTodayLogs({ appId: deviceId, socket: true });
-
-  await socketDM(
-    userId,
-    { data: { ...data.data } },
-    socket,
-    wss
-  );
-};
 
 
 
@@ -175,33 +159,23 @@ export const createNewNotification = async ({ payload, developerId, socket, wss 
     message
   });
 
-  await socketDM(developerId, { type: "SERVER_EVENT", data }, socket, wss);
+  await socketDM({ recipientId: developerId, message: { type: "SERVER_EVENT", data }, socket: socket, wss: wss });
 };
 
 // get called when the board reads data
-export const ReadNotification = async ({ userId, developerId, socket, wss }) => {
-  const data = await getMessage({ developer_id: developerId });
+export const ReadNotification = async ({ socket, wss }) => {
+  const data = await getMessage({ developer_id: ws.user.developer_id });
 
-  await socketDM(userId, { event: "SERVER_EVENT", data }, socket, wss);
-
-  await socketDM(userId, {
-    event: "SERVER_EVENT",
-    data: "Your device just read from the database"
-  }, socket, wss);
+  await socketDM({ recipientId: userId, message: { event: "SERVER_EVENT", data }, socket: socket, wss: wss });
+  await socketDM({ recipientId: ws.user.developer_id, message: { event: "SERVER_EVENT", data: "Your device just read from the database" }, socket: socket, wss: wss });
 };
 
-
-
-
-
-module.exports = {
-  socketDM,
-  socketDisconect,
-  addAttendantLog,
-  ReadNotification,
-  socketAuthMiddleware,
-  createNewNotification,
-  registerNewConnection,
-  socketRetreiveTodaysAttendance,
+export const synchroniseAllDevices = async ({ ws, wss }) => {
+  const devices = await getUserDevices({ deceloper_id: ws.user.id })
+  devices.forEach(device => {
+    socketDM({ recipientId: device.id, message: { action: "sync", }, socket: ws, wss: wss })
+  })
 
 }
+
+

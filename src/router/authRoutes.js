@@ -1,9 +1,17 @@
-const express = require("express");
-const { db } = require("../db/config");
-const { iotDevices } = require("../db/schema");
-const { eq } = require("drizzle-orm");
-const bcrypt = require('bcryptjs');
-const { authRegister, authLogin, authReset, authForgot, deviceAuthLogin } = require("../controller/authController");
+
+import express from "express";
+import { db } from "../db/config.js";
+import { iotDevices } from "../db/schema.js";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import {
+    authRegister,
+    authLogin,
+    authReset,
+    authForgot,
+    deviceAuthLogin
+} from "../controller/authController.js";
+
 
 
 const router = express.Router();
@@ -20,14 +28,4 @@ router.post("/re",()=>{})
 
 
 
-
-
-
-
-
-
-
-
-
-
-module.exports = router;
+export default router

@@ -1,9 +1,10 @@
-const fs = require('fs');
-const dotenv = require('dotenv');
+import fs from 'fs';
+import dotenv from 'dotenv';
 dotenv.config();
 
 class CredentialsLoader {
   constructor() {
+    /** @type {{ [key: string]: string | null }} */
     this.credentials = {
       dbName: null,
       app_secret: null,
@@ -13,7 +14,7 @@ class CredentialsLoader {
       dbHost: process.env.DB_HOST || 'localhost',
       dbPort: process.env.DB_PORT || '5432',
       node_env: process.env.NODE_ENV || 'development',
-      dbUser: process.env.DB_User || "postgres",
+      dbUser: "postgres",
     };
   }
 
@@ -27,7 +28,7 @@ class CredentialsLoader {
       { secretPath: '/run/secrets/superuser_email', envVar: 'SUPERUSER_EMAIL', target: 'superuser_email' }
     ];
 
-    secretMappings.forEach(({ secretPath, envVar, target }) => {
+    secretMappings.forEach(({ secretPath, envVar, target = "" }) => {
       try {
         // Try to read from Docker secret first
         if (fs.existsSync(secretPath)) {
@@ -52,7 +53,7 @@ class CredentialsLoader {
     // Add any validation logic here
     const requiredCredentials = ['dbUser', 'dbPassword', 'dbName'];
     const missing = requiredCredentials.filter(field => !this.credentials[field]);
-    
+
     if (missing.length > 0) {
       throw new Error(`Missing required credentials: ${missing.join(', ')}`);
     }
@@ -70,4 +71,4 @@ class CredentialsLoader {
 
 // Singleton instance
 const credentialsLoader = new CredentialsLoader();
-module.exports = credentialsLoader.getCredentials();
+export default credentialsLoader.getCredentials();

@@ -2,11 +2,11 @@
   "name": "iot_server",
   "version": "1.0.0",
   "main": "./src/app.js",
+  "type": "module",
   "scripts": {
     "seed": "drizzle-kit migrate &&  node ./src/test/seed.js",
     "dev": "nodemon --watch src --exec node ./src/app.js",
     "start": "node ./src/app.js"
-   
   },
   "keywords": [
     "IoT"
@@ -25,6 +25,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "node-pg-migrate": "^7.9.1",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.14.1",
     "socket.io": "^4.8.1"
   },

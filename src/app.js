@@ -1,20 +1,24 @@
-// === IMPORTS ===
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
+import WebSocket from 'ws';
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
 
-const cors = require('cors');
-const iotRoutes = require("./router/iot_Routes.js");
-const authRoutes = require("./router/authRoutes.js");
-const { pool } = require('./db/config');
-const {
-  socketDM,
+import cors from 'cors';
+
+import { pool } from './db/config.js';
+
+import {
+  socketAuthMiddleware,
   socketDisconect,
   registerNewConnection,
-  socketRetreiveTodaysAttendance,
+  socketDM,
   addAttendantLog,
-  socketAuthMiddleware
-} = require("./socket/socketController.js");
+  createNewNotification,
+  ReadNotification,
+} from './controller/socketController.js';
+import authRoutes from './router/authRoutes.js'; // 
+import iotRoutes from './router/iot_Routes.js'; // 
+
 
 // === EXPRESS + HTTP SERVER ===
 const app = express();
@@ -69,21 +73,42 @@ server.on('upgrade', async (request, socket, head) => {
 
 // === WebSocket connection logic ===
 wss.on('connection', async (ws, request) => {
-  console.log(`New WS connection from: ${ws.user.id}`);
   await registerNewConnection(ws);
-  console.log("my resting messages----------------")
+
   ws.on('message', async (message) => {
+
     try {
       const data = JSON.parse(message);
 
       switch (data.event) {
+        // General
         case 'direct_message':
           console.log(`DM from ${ws.user.id}: ${JSON.stringify(data)}`);
           await socketDM(data.recipientId, data.message, ws, wss);
           break;
+
+        // Jacks
         case "log_attendace":
           console.log("loggin attendance")
-          addAttendantLog({ data: data, developer_id: socket.user.developer_id })
+          addAttendantLog({ data: data, developer_id: ws.user.developer_id, })
+          break;
+
+
+        // TODO test the Tope's connection and data exchange
+        // TOPE
+        // its only the admin that create message thus socket wont have developer_id rather just usere.id
+        case "createNewNotice":
+          createNewNotification({ developerId: ws.user.id, payload })
+          break;
+
+        case "readNotice":
+          ReadNotification({ socket: ws, wss: wss })
+          break;
+
+        case "sync":
+          synchroniseAllDevices({ ws: ws, wss: wss })
+          break;
+
 
         default:
           console.log('Unknown message type:', data.event);

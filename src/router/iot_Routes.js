@@ -1,5 +1,5 @@
-const express = require('express');
-const { randomUUID } = require('crypto');
+import express from 'express';
+import { exportAttendance } from './libraryRoute.js';
 const router = express.Router();
 
 // Create new IoT device
@@ -16,18 +16,6 @@ router.post('/devices', async (req, res) => {
   }
 });
 
-// Add IoT data
-router.post('/data', async (req, res) => {
-  try {
-    const data = await IoTModel.addData(
-      req.body.appId,
-      req.body.logData
-    );
-    res.status(201).json(data);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
 
 // Get device data
 router.post('/data/:appId', async (req, res) => {
@@ -39,4 +27,16 @@ router.post('/data/:appId', async (req, res) => {
   }
 });
 
-module.exports = router;
+
+
+
+router.get('/library/export-attendance', exportAttendance);
+
+
+
+
+
+
+
+
+export default router

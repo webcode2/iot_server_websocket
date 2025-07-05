@@ -1,10 +1,11 @@
-const bcrypt = require("bcryptjs")
-const { db } = require("../db/config");
-const { iotDevices, developer } = require("../db/schema");
-const { eq } = require("drizzle-orm")
-const jwt = require("jsonwebtoken");
-const credentials = require("../utils/credentials");
-require('dotenv').config();
+import bcrypt from "bcryptjs";
+import { db } from "../db/config.js";
+import { iotDevices, developer } from "../db/schema.js";
+import { eq } from "drizzle-orm";
+import jwt from "jsonwebtoken";
+import credentials from "../utils/credentials.js";
+import dotenv from "dotenv";
+
 
 
 async function generateToken(data=undefined) {
@@ -15,7 +16,7 @@ async function generateToken(data=undefined) {
     });
 }
 
-const authLogin = async (req, res) => {
+export const authLogin = async (req, res) => {
     try {
         data = await db.query.developer.findFirst({ where: (developer, { eq }) => eq(developer.email, req.body.email) })
         if (data) {
@@ -30,7 +31,7 @@ const authLogin = async (req, res) => {
 }
 
 
-const deviceAuthLogin = async (req, res) => {
+export const deviceAuthLogin = async (req, res) => {
     try {
         data = await db.query.iotDevices.findFirst({ where: (iotDevices, { eq }) => eq(iotDevices.id, req.body.id) })
         if (data) {
@@ -46,7 +47,7 @@ const deviceAuthLogin = async (req, res) => {
 
 
 
-const authRegister = async (req, res) => {
+export const authRegister = async (req, res) => {
     // Hash the password
     if (!req.body?.password) {
         return res.status(400).json({ error: "Password is required" });
@@ -107,7 +108,7 @@ const authRegister = async (req, res) => {
 
 
 
-const authReset = async (req, res) => {
+export const authReset = async (req, res) => {
 
     // Hash the password
     if (!req.body?.token) return res.status(400).json({ error: "Token not valid" });
@@ -131,7 +132,7 @@ const authReset = async (req, res) => {
     }
 
 }
-const authForgot = async (req, res) => {
+export const authForgot = async (req, res) => {
     if (!req.body?.email) return res.status(400).json({ error: "Email is required" });
     try {
         let device = await db.query.iotDevices.findFirst({ where: (iotDevices, { eq }) => eq(iotDevices.email, req.body.email) })
@@ -149,4 +150,3 @@ const authForgot = async (req, res) => {
 }
 
 
-module.exports = { authRegister, authLogin, authReset, authForgot, deviceAuthLogin }
