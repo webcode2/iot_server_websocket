@@ -84,7 +84,7 @@ wss.on('connection', async (ws, request) => {
         // General
         case 'direct_message':
           console.log(`DM from ${ws.user.id}: ${JSON.stringify(data)}`);
-          await socketDM({ recipientId: data.recipientId, message: data.message, ws: ws, wss: wss });
+          await socketDM({ recipientId: data.recipientId, message: data.message, socket: ws, wss: wss });
           break;
 
         // Jacks

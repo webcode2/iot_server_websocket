@@ -61,7 +61,7 @@ function getTodayRange({ start = new Date(), end = new Date() }) {
 export const getUserDevices = async ({ developer_id = "" }) => {
     try {
 
-        devices = await db.query.iotDevices.findMany({
+        const devices = await db.query.iotDevices.findMany({
             where: (iot_devices, { eq }) => eq(iotDevices.developerId, developer_id), columns: {
                 developerId: true,
                 name: true,
