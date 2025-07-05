@@ -94,7 +94,7 @@ export const socketDisconect = async (socket,) => {
 }
 
 
-export const socketDM = async ({ recipientId, message, socket, wss }) => {
+export const socketDM = async ( recipientId, message, socket, wss ) => {
   if (!recipientId) {
     console.error('Recipient ID is required');
     return;

@@ -11,13 +11,13 @@ import {
   socketAuthMiddleware,
   socketDisconect,
   registerNewConnection,
-  socketDM,
   addAttendantLog,
   createNewNotification,
   ReadNotification,
 } from './controller/socketController.js';
 import authRoutes from './router/authRoutes.js'; // 
 import iotRoutes from './router/iot_Routes.js'; // 
+import { socketDM } from "./controller/socketController.js";
 
 
 // === EXPRESS + HTTP SERVER ===
@@ -84,7 +84,7 @@ wss.on('connection', async (ws, request) => {
         // General
         case 'direct_message':
           console.log(`DM from ${ws.user.id}: ${JSON.stringify(data)}`);
-          await socketDM(data.recipientId, data.message, ws, wss);
+          await socketDM({ recipientId: data.recipientId, message: data.message, ws: ws, wss: wss });
           break;
 
         // Jacks
