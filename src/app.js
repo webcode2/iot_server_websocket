@@ -102,7 +102,7 @@ wss.on('connection', async (ws, request) => {
 
         case "register":
           console.log(data)
-          await registerStudentfinerPrint({ recipientId: data.recipientId, message: data.message, socket: ws, wss: wss })
+          await registerStudentfinerPrint({  message: data.message, socket: ws, wss: wss })
           break;
 
 

@@ -5,6 +5,8 @@ import { getUserDevices } from "./deviceController.js";
 import { getMessage, setMessage } from "./messageController.js";
 import credentials from "../utils/credentials.js";
 import { getLastFingerprintId } from "./library_studentController.js";
+import WebSocket from 'ws';
+
 
 let onlineUsers = new Set();
 let onlineDevices = new Set()
@@ -97,18 +99,19 @@ export const socketDisconect = async (socket,) => {
 
 export const socketDM = async ({ recipientId, message, socket, wss }) => {
   if (!recipientId) {
-    console.error('Recipient ID is required');
+    console.error('[socketDM] Recipient ID is required');
+    socket.send(JSON.stringify({
+      event: 'error',
+      message: 'Recipient ID is required'
+    }));
     return;
   }
 
   let found = false;
 
   wss.clients.forEach(client => {
-    // Check:
-    // 1. client is alive and ready
-    // 2. client has a user ID
     if (
-      client.readyState === 1 &&
+      client.readyState === WebSocket.OPEN &&
       client.user &&
       client.user.id === recipientId
     ) {
@@ -119,7 +122,7 @@ export const socketDM = async ({ recipientId, message, socket, wss }) => {
           name: socket.user.name
         },
         message,
-        timestamp: new Date()
+        timestamp: Date.now()
       }));
 
       found = true;
@@ -127,7 +130,13 @@ export const socketDM = async ({ recipientId, message, socket, wss }) => {
   });
 
   if (!found) {
-    console.error(`Recipient ${recipientId} not online`);
+    console.warn(`[socketDM] Recipient ${recipientId} not online`);
+    // Notify the sender that the recipient is offline
+    socket.send(JSON.stringify({
+      event: 'direct_message_error',
+      message: `Recipient ${recipientId} is not online.`,
+      recipientId
+    }));
   }
 };
 
@@ -145,10 +154,15 @@ export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
   }
 };
 
-export const registerStudentfinerPrint = async ({ recipientId, message, socket, wss }) => {
+export const registerStudentfinerPrint = async ({ message, socket, wss }) => {
+  let devices = await getUserDevices({ developer_id: socket.user.id })
   const id = await getLastFingerprintId()
-  socketDM({ recipientId: recipientId, message: { action: "register", ...id }, socket, wss })
-  socketDM({ recipientId: socket.user.id, message: { action: "register", ...id, status: "sent" }, socket, wss })
+  if (devices.length > 0) {
+
+    socketDM({ recipientId: devices[0].id, message: { action: "register", ...id }, socket, wss })
+  } else {
+    await socketDM({ recipientId: socket.user.id, message: { action: "register", ...id, status: "sent" }, socket, wss })
+  }
 }
 
 
