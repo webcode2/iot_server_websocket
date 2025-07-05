@@ -7,4 +7,4 @@ echo "🌱 Seeding students..."
 node ./src/utils/seedStudents.js
 
 echo "Starting Node.js app..."
-exec nodemon src/app.js
+exec node src/app.js
