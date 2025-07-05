@@ -14,6 +14,19 @@ const developer = pgTable('developer', {
   passwordResetToken: varchar('password_reset_token', { length: 25 }),
 });
 
+const staff = pgTable("users", {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`).unique(), // PostgreSQL's built-in UUID
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  developerId: uuid('developer_id').references(() => developer.id).notNull(),
+
+})
+
+
+
+
 // IoT Devices Table
 const iotDevices = pgTable('iot_devices', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`).unique(), // PostgreSQL's built-in UUID
@@ -52,6 +65,7 @@ const attendance = pgTable(
 }
 );
 
+
 // Tope's Notice Boar
 const nBMessage = pgTable(
   "nBmessage", {
@@ -60,7 +74,8 @@ const nBMessage = pgTable(
   message: varchar("message", { length: 500 }).notNull(),
   isActive: boolean("isActive").default(true),
   duration: integer("duration").default(2),
-  developerId: uuid("developerid").references(() => developer.id)
+    develouserperId: uuid("developerId").references(() => developer.id),
+    staff_id: uuid("staffId").references(() => staff.id).default(null)
 });
 
 
@@ -69,7 +84,7 @@ const nBMessage = pgTable(
 export {
   iotDevices,
   developer,
-
+  staff,
   student,
   attendance,
 

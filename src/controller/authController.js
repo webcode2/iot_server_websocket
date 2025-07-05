@@ -4,7 +4,7 @@ import { iotDevices, developer } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import credentials from "../utils/credentials.js";
-import dotenv from "dotenv";
+
 
 
 
@@ -16,24 +16,63 @@ async function generateToken(data=undefined) {
     });
 }
 
+
 export const authLogin = async (req, res) => {
+    const { email, password } = req.body;
+
     try {
-        data = await db.query.developer.findFirst({ where: (developer, { eq }) => eq(developer.email, req.body.email) })
-        if (data) {
-            if (bcrypt.compareSync(req.body.password, data.password)) {
+        // 1️⃣ Try developer first
+        const [foundDeveloper] = await db.select().from(developer).where(eq(developer.email, email));
 
-                return res.status(200).json({ jwt_token: await generateToken({ account_name: data.name, account_id: data.id, account_type: "developer" }), ...data, password: undefined });
+        if (foundDeveloper) {
+            const valid = bcrypt.compareSync(password, foundDeveloper.password);
+            if (!valid) {
+                return res.status(401).json({ error: 'Invalid email or password' });
             }
-        }
-        return res.status(401).json({ error: "Invalid email or password" });
 
-    } catch (err) { res.status(400).json({ error: err.message }); }
-}
+            const jwt_token = await generateToken({
+                account_name: foundDeveloper.name,
+                account_id: foundDeveloper.id,
+                account_type: 'developer'
+            });
+
+            const { passwordResetToken: __, password: _, ...safeData } = foundDeveloper;
+            return res.status(200).json({ jwt_token, ...safeData });
+        }
+
+        // 2️⃣ If no developer found, check staff
+        const [foundStaff] = await db.select().from(staff).where(eq(staff.email, email));
+
+        if (foundStaff) {
+            const valid = bcrypt.compareSync(password, foundStaff.password);
+            if (!valid) {
+                return res.status(401).json({ error: 'Invalid email or password' });
+            }
+
+            const jwt_token = await generateToken({
+                account_name: foundStaff.name,
+                account_id: foundStaff.id,
+                account_type: 'staff',
+                developer_id: foundStaff.developerId, // so you know who owns this staff
+            });
+
+            const { password: _, ...safeData } = foundStaff;
+            return res.status(200).json({ jwt_token, ...safeData });
+        }
+
+        // 3️⃣ If neither found
+        return res.status(401).json({ error: 'Invalid email or password' });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
 
 
 export const deviceAuthLogin = async (req, res) => {
     try {
-        data = await db.query.iotDevices.findFirst({ where: (iotDevices, { eq }) => eq(iotDevices.id, req.body.id) })
+        const data = await db.query.iotDevices.findFirst({ where: (iotDevices, { eq }) => eq(iotDevices.id, req.body.id) })
         if (data) {
             if (bcrypt.compareSync(req.body.password, data.password)) {
 
@@ -46,14 +85,13 @@ export const deviceAuthLogin = async (req, res) => {
 }
 
 
-
 export const authRegister = async (req, res) => {
     // Hash the password
     if (!req.body?.password) {
         return res.status(400).json({ error: "Password is required" });
     }
 
-    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds = bcrypt.genSaltSync(10));
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
 
     try {
@@ -149,4 +187,126 @@ export const authForgot = async (req, res) => {
     }
 }
 
+// add Users{Staff}
 
+// === CREATE ===
+export const createStaff = async (req, res) => {
+    try {
+        const { name, email, password, developerId } = req.body;
+
+        if (!name || !email || !password || !developerId) {
+            return res.status(400).json({ message: "Missing required fields." });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const [newStaff] = await db.insert(staff).values({
+            name,
+            email,
+            password: hashedPassword,
+            developerId
+        }).returning();
+
+        res.status(201).json(newStaff);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to create staff." });
+    }
+};
+
+// === READ ALL ===
+export const getAllStaff = async (req, res) => {
+    try {
+        const allStaff = await db.select().from(staff);
+        res.status(200).json(allStaff);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch staff." });
+    }
+};
+
+// === READ ONE ===
+export const getStaffById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [foundStaff] = await db.select().from(staff).where(eq(staff.id, id));
+
+        if (!foundStaff) {
+            return res.status(404).json({ message: "Staff not found." });
+        }
+
+        res.status(200).json(foundStaff);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch staff." });
+    }
+};
+
+// === UPDATE ===
+export const updateStaff = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, email, password } = req.body;
+
+        // Fetch target staff record
+        const [target] = await db.select().from(staff).where(eq(staff.id, id));
+        if (!target) {
+            return res.status(404).json({ message: "Staff not found." });
+        }
+
+        // Verify permission
+        const isOwner = req.user.id === target.id;
+        const isDeveloper = req.user.account_type === "developer" && req.user.id === target.developerId;
+
+        if (!isOwner && !isDeveloper) {
+            return res.status(403).json({ message: "Forbidden: You do not have permission to update this account." });
+        }
+
+        // Prepare updates
+        const updates = {};
+        if (name) updates.name = name;
+        if (email) updates.email = email;
+        if (password) updates.password = await bcrypt.hash(password, 10);
+
+        const [updated] = await db.update(staff)
+            .set(updates)
+            .where(eq(staff.id, id))
+            .returning();
+
+        res.status(200).json(updated);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to update staff." });
+    }
+};
+
+
+// === DELETE ===
+export const deleteStaff = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch target staff record
+        const [target] = await db.select().from(staff).where(eq(staff.id, id));
+        if (!target) {
+            return res.status(404).json({ message: "Staff not found." });
+        }
+
+        // Verify permission
+        const isOwner = req.user.id === target.id;
+        const isDeveloper = req.user.account_type === "developer" && req.user.id === target.developerId;
+
+        if (!isOwner && !isDeveloper) {
+            return res.status(403).json({ message: "Forbidden: You do not have permission to delete this account." });
+        }
+
+        const [deleted] = await db.delete(staff)
+            .where(eq(staff.id, id))
+            .returning();
+
+        res.status(200).json({ message: "Staff deleted.", deleted });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to delete staff." });
+    }
+};

@@ -58,7 +58,7 @@ export const socketAuthMiddleware = async (token) => {
         name: decoded.account_name,
         id: decoded.account_id,
         account_type: decoded.account_type,
-        developer_id: decoded.account_type === "device" ? decoded.developer_id : undefined
+        developer_id: decoded.account_type === "device" ? decoded.developer_id : null
       };
       resolve(user);
     });
@@ -150,18 +150,43 @@ export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
 
 
 // TOPE Notice Boaard
-
 export const createNewNotification = async ({ payload, developerId, socket, wss }) => {
   const { duration, message } = payload;
+
+  let resolvedDeveloperId = developerId;
+  let staff_id = null;
+
+  // 1️⃣ See if it’s a staff
+  const staffRow = await db.select().from(staff).where(eq(staff.id, developerId)).then(rows => rows[0]);
+
+  if (staffRow) {
+    // It’s a staff — get FK host id
+    resolvedDeveloperId = staffRow.developerId; // the FK column
+    staff_id = staffRow.id;
+  }
+
   const data = await setMessage({
-    developer_id: developerId,
+    developer_id: resolvedDeveloperId,
     duration,
-    message
+    message,
+    staff_id
   });
+  if (staff_id !== null) {
+    await socketDM({
+      recipientId: staff_id,
+      message: { type: "SERVER_EVENT", data },
+      socket,
+      wss
+    })
+  }
 
-  await socketDM({ recipientId: developerId, message: { type: "SERVER_EVENT", data }, socket: socket, wss: wss });
+  await socketDM({
+    recipientId: resolvedDeveloperId,
+    message: { type: "SERVER_EVENT", data },
+    socket,
+    wss
+  });
 };
-
 // get called when the board reads data
 export const ReadNotification = async ({ socket, wss }) => {
   const data = await getMessage({ developer_id: ws.user.developer_id });
