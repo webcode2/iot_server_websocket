@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import credentials from "./credentials";
+import credentials from "./credentials.js";
 
 const APP_SECRET = credentials.app_secret; // Be sure to use env in production
 

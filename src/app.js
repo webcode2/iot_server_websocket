@@ -17,7 +17,11 @@ import {
 } from './controller/socketController.js';
 import authRoutes from './router/authRoutes.js'; // 
 import iotRoutes from './router/iot_Routes.js'; // 
+import libStudentRoutes from "./router/library/studentRoute.js"
 import { socketDM } from "./controller/socketController.js";
+import { authMiddleware } from "./utils/authMiddleware.js";
+import { getLastFingerprintId } from "./controller/library_studentController.js";
+import { registerStudentfinerPrint } from "./controller/socketController.js";
 
 
 // === EXPRESS + HTTP SERVER ===
@@ -43,6 +47,9 @@ app.use((req, res, next) => {
 // === REST ROUTES ===
 app.use('/api/iot', iotRoutes);
 app.use('/api/auth', authRoutes);
+app.use("/api/library-student,", authMiddleware, libStudentRoutes)
+
+
 app.get('/', (req, res) => res.json({ message: 'Welcome to the Home Assistant API' }));
 
 // === Upgrade handler for WS ===
@@ -91,6 +98,11 @@ wss.on('connection', async (ws, request) => {
         case "log_attendace":
           console.log("loggin attendance")
           addAttendantLog({ data: data, developer_id: ws.user.developer_id, })
+          break;
+
+        case "register":
+          console.log(data)
+          await registerStudentfinerPrint({ recipientId: data.recipientId, message: data.message, socket: ws, wss: wss })
           break;
 
 

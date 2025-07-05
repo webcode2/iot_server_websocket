@@ -4,6 +4,7 @@ import { addNewAttendance } from "./libraryController.js";
 import { getUserDevices } from "./deviceController.js";
 import { getMessage, setMessage } from "./messageController.js";
 import credentials from "../utils/credentials.js";
+import { getLastFingerprintId } from "./library_studentController.js";
 
 let onlineUsers = new Set();
 let onlineDevices = new Set()
@@ -131,8 +132,10 @@ export const socketDM = async ({ recipientId, message, socket, wss }) => {
 };
 
 
-// JAcks Library
 
+
+
+// JAcks Library
 
 export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
   const atten = await addNewAttendance(data);
@@ -141,6 +144,13 @@ export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
     await socketDM({ recipientId: developer_id, message: { ...atten }, socket: socket, wss: wss });
   }
 };
+
+export const registerStudentfinerPrint = async ({ recipientId, message, socket, wss }) => {
+  const id = await getLastFingerprintId()
+  socketDM({ recipientId: recipientId, message: { action: "register", ...id }, socket, wss })
+  socketDM({ recipientId: socket.user.id, message: { action: "register", ...id, status: "sent" }, socket, wss })
+}
+
 
 
 
