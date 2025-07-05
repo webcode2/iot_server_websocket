@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { addNewAttendance } from "./libraryController.js";
 import { getUserDevices } from "./deviceController.js";
 import { getMessage, setMessage } from "./messageController.js";
+import credentials from "../utils/credentials.js";
 
 let onlineUsers = new Set();
 let onlineDevices = new Set()
