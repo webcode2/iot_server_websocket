@@ -95,8 +95,7 @@ wss.on('connection', async (ws, request) => {
           break;
 
         // Jacks
-        case "log_attendace":
-          console.log("loggin attendance")
+        case "addlog":
           addAttendantLog({ data: data, developer_id: ws.user.developer_id, })
           break;
 
