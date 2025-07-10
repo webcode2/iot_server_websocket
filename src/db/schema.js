@@ -42,7 +42,7 @@ const iotDevices = pgTable('iot_devices', {
 const student = pgTable('students', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`).unique(), // PostgreSQL's built-in UUID
   firstName: varchar('firstName', { length: 100 }),
-  lastNname: varchar('lastNname', { length: 100 }),
+  lastName: varchar('lastName', { length: 100 }),
   matriNo: varchar('matriNo', { length: 20 }).unique(),
   email: varchar('email', { length: 255 }).unique(),
   fingerPrintId: varchar('fingerPrintId', { length: 255 }).unique(),

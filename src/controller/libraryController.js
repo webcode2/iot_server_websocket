@@ -5,7 +5,7 @@ import { db } from "../db/config.js";
 
 
 // export to PDF
-export const exportAttendanceController = async () => {
+const exportAttendanceController = async () => {
     const records = await db
         .select({
             matricNo: student.matriNo,
@@ -88,13 +88,27 @@ export const exportAttendanceController = async () => {
 }
 
 export const addNewAttendance = async (data) => {
-    console.log("................................");
 
-    console.log(data.userId)
-    const { accessType, time = new Date(), userId } = JSON.parse(data)
+    let parsed = {};
+
+    if (typeof data === 'string') {
+        parsed = JSON.parse(data);
+    } else if (Buffer.isBuffer(data)) {
+        parsed = JSON.parse(data.toString());
+    } else if (typeof data === 'object' && data !== null) {
+        parsed = data;
+    } else {
+        throw new Error('Unsupported data type for parsing');
+    }
+
+    const {
+        accessType,
+        time = new Date(),
+        id: userId
+    } = parsed.message;
+    console.log(parsed.message)
     const [currentStudent] = await db.select().from(student).where(or(eq(student.fingerPrintId, userId), eq(student.rfid, userId)))
-    console.log(currentStudent)
-    console.log("//////////////////////////");
+  
 
     if (!currentStudent) { return null }
 
@@ -112,8 +126,12 @@ export const addNewAttendance = async (data) => {
 
 
 
-// export const getLogsByDate = async ({ appId, startDate, endDate = new Date() }) => {
-//     const result = await getPaginatedLogData({ appId: appId, page: 1, perPage: 40, startDate: startDate, endDate: endDate });
 
 
-// }
+export const exportAttendance = async (req, res) => {
+    const pdfBytes = await exportAttendanceController()
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=attendance.pdf');
+    res.send(Buffer.from(pdfBytes));
+}
+

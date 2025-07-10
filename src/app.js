@@ -20,8 +20,8 @@ import iotRoutes from './router/iot_Routes.js'; //
 import libStudentRoutes from "./router/library/studentRoute.js"
 import { socketDM } from "./controller/socketController.js";
 import { authMiddleware } from "./utils/authMiddleware.js";
-import { getLastFingerprintId } from "./controller/library_studentController.js";
 import { registerStudentfinerPrint } from "./controller/socketController.js";
+import libraryRoute from "./router/library/libraryRoute.js"
 
 
 // === EXPRESS + HTTP SERVER ===
@@ -47,7 +47,8 @@ app.use((req, res, next) => {
 // === REST ROUTES ===
 app.use('/api/iot', iotRoutes);
 app.use('/api/auth', authRoutes);
-app.use("/api/library-student,", authMiddleware, libStudentRoutes)
+app.use("/api/library-student", authMiddleware, libStudentRoutes)
+app.use("/api/library", authMiddleware, libraryRoute)
 
 
 app.get('/', (req, res) => res.json({ message: 'Welcome to the Home Assistant API' }));
@@ -96,7 +97,8 @@ wss.on('connection', async (ws, request) => {
 
         // Jacks
         case "addlog":
-          addAttendantLog({ data: data, developer_id: ws.user.developer_id, })
+          await addAttendantLog({ data: data, developer_id: ws.user.developer_id, socket: ws, wss: wss })
+          console.log(data)
           break;
 
         case "register":

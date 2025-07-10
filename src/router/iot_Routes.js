@@ -1,5 +1,4 @@
 import express from 'express';
-import { exportAttendance } from './libraryRoute.js';
 const router = express.Router();
 
 // Create new IoT device
@@ -30,7 +29,6 @@ router.post('/data/:appId', async (req, res) => {
 
 
 
-router.get('/library/export-attendance', exportAttendance);
 
 
 

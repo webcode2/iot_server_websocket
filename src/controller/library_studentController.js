@@ -1,7 +1,15 @@
-import { desc, sql } from 'drizzle-orm';
-import { eq } from "drizzle-orm";
 import { db } from "../db/config.js";
-import { student } from "../db/schema.js";
+
+
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { attendance, student } from "../db/schema.js";
+import { eq, sql, desc } from "drizzle-orm";
+
+
+
+
+
+
 
 // === CREATE ===
 export const createStudent = async (req, res) => {
