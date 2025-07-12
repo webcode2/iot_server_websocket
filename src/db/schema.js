@@ -1,7 +1,7 @@
 import { pgTable, uuid, varchar, jsonb, timestamp } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { index } from 'drizzle-orm/pg-core';
-import { boolean, integer } from "drizzle-orm/gel-core";
+import { boolean, integer, text } from "drizzle-orm/gel-core";
 
 
 
@@ -30,7 +30,9 @@ const staff = pgTable("users", {
 // IoT Devices Table
 const iotDevices = pgTable('iot_devices', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`).unique(), // PostgreSQL's built-in UUID
-  developerId: uuid('developer_id').references(() => developer.id),
+  developerId: uuid('developer_id').references(() => developer.id, {
+    onDelete: 'cascade'
+  }),
   name: varchar('name', { length: 255 }).notNull(),
   password: varchar('password', { length: 255 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -39,11 +41,11 @@ const iotDevices = pgTable('iot_devices', {
 
 
 // Jack library
-const student = pgTable('students', {
+const student = pgTable('student', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`).unique(), // PostgreSQL's built-in UUID
   firstName: varchar('firstName', { length: 100 }),
   lastName: varchar('lastName', { length: 100 }),
-  matriNo: varchar('matriNo', { length: 20 }).unique(),
+  matricNo: varchar('matricNo', { length: 20 }).unique(),
   email: varchar('email', { length: 255 }).unique(),
   fingerPrintId: varchar('fingerPrintId', { length: 255 }).unique(),
   rfid: varchar('rfid', { length: 100 }).unique(),
@@ -60,11 +62,25 @@ const attendance = pgTable(
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   time: timestamp('time').defaultNow().notNull(),
   methodUsed: varchar('methodUsed', { length: 20 }),
-  studentId: uuid('studentId').references(() => student.id),
+    studentId: uuid('studentId').references(() => student.id, {
+      onDelete: 'cascade'
+    }),
 
 }
 );
 
+
+export const book = pgTable("book", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 255 }).notNull(),
+  author: varchar("author", { length: 255 }).notNull(),
+  year: integer("year").notNull(),
+  genre: varchar("genre", { length: 100 }).notNull(),
+  description: text("description").notNull(),
+  liberianId: uuid('liberianId').references(() => staff.id, {
+    onDelete: 'cascade'
+  }),
+});
 
 
 
@@ -78,8 +94,10 @@ const nBMessage = pgTable(
   message: varchar("message", { length: 500 }).notNull(),
   isActive: boolean("isActive").default(true),
   duration: integer("duration").default(2),
-    develouserperId: uuid("developerId").references(() => developer.id),
-    staff_id: uuid("staffId").references(() => staff.id).default(null)
+    develouserperId: uuid("developerId").references(() => developer.id,),
+    staff_id: uuid("staffId").references(() => staff.id, {
+      onDelete: 'cascade'
+    }).default(null)
 });
 
 

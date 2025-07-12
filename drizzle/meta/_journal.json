@@ -5,15 +5,29 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1751683092280,
-      "tag": "0000_busy_meltdown",
+      "when": 1752190420405,
+      "tag": "0000_public_mister_sinister",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1752161710209,
-      "tag": "0001_old_rockslide",
+      "when": 1752216490372,
+      "tag": "0001_fuzzy_machine_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752234444648,
+      "tag": "0002_dapper_wasp",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1752262241908,
+      "tag": "0003_sharp_cardiac",
       "breakpoints": true
     }
   ]

@@ -1,5 +1,5 @@
 {
-  "id": "a0d91fe7-8fd2-48fd-b73a-91f0968635c8",
+  "id": "bfa0a01d-6f41-4b64-8a60-bfbfb3582b47",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -37,10 +37,10 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "attendance_studentId_students_id_fk": {
-          "name": "attendance_studentId_students_id_fk",
+        "attendance_studentId_student_id_fk": {
+          "name": "attendance_studentId_student_id_fk",
           "tableFrom": "attendance",
-          "tableTo": "students",
+          "tableTo": "student",
           "columnsFrom": [
             "studentId"
           ],
@@ -357,8 +357,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.students": {
-      "name": "students",
+    "public.student": {
+      "name": "student",
       "schema": "",
       "columns": {
         "id": {
@@ -374,8 +374,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "lastNname": {
-          "name": "lastNname",
+        "lastName": {
+          "name": "lastName",
           "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
@@ -447,36 +447,36 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "students_id_unique": {
-          "name": "students_id_unique",
+        "student_id_unique": {
+          "name": "student_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "id"
           ]
         },
-        "students_matriNo_unique": {
-          "name": "students_matriNo_unique",
+        "student_matriNo_unique": {
+          "name": "student_matriNo_unique",
           "nullsNotDistinct": false,
           "columns": [
             "matriNo"
           ]
         },
-        "students_email_unique": {
-          "name": "students_email_unique",
+        "student_email_unique": {
+          "name": "student_email_unique",
           "nullsNotDistinct": false,
           "columns": [
             "email"
           ]
         },
-        "students_fingerPrintId_unique": {
-          "name": "students_fingerPrintId_unique",
+        "student_fingerPrintId_unique": {
+          "name": "student_fingerPrintId_unique",
           "nullsNotDistinct": false,
           "columns": [
             "fingerPrintId"
           ]
         },
-        "students_rfid_unique": {
-          "name": "students_rfid_unique",
+        "student_rfid_unique": {
+          "name": "student_rfid_unique",
           "nullsNotDistinct": false,
           "columns": [
             "rfid"

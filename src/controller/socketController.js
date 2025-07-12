@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { addNewAttendance } from "./libraryController.js";
 import { getUserDevices } from "./deviceController.js";
 import { getMessage, setMessage } from "./messageController.js";
-import credentials from "../utils/credentials.js";
+import credentials from "../config/credentials.js";
 import { getLastFingerprintId } from "./library_studentController.js";
 import WebSocket from 'ws';
 
@@ -154,14 +154,16 @@ export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
   }
 };
 
-export const registerStudentfinerPrint = async ({ message, socket, wss }) => {
+export const registerStudentfinerPrintRFID = async ({ rfid = false, message, socket, wss }) => {
   let devices = await getUserDevices({ developer_id: socket.user.id })
   const id = await getLastFingerprintId()
-  if (devices.length > 0) {
 
-    socketDM({ recipientId: devices[0].id, message: { action: "register", id: id.lastFingerprintId }, socket, wss })
+  if (devices.length > 0) {
+    rfid
+      ? socketDM({ recipientId: devices[0].id, message: { action: "registerRFID", }, socket, wss })
+      : socketDM({ recipientId: devices[0].id, message: { action: "register", id: id.lastFingerprintId }, socket, wss })
   } else {
-    await socketDM({ recipientId: socket.user.id, message: { action: "register", id: id.lastFingerprintId, status: "sent" }, socket, wss })
+    await socketDM({ recipientId: socket.user.id, message: { detail: "User has no devices", status: "not sent" }, socket, wss })
   }
 }
 

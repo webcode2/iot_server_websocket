@@ -14,14 +14,15 @@ import {
   addAttendantLog,
   createNewNotification,
   ReadNotification,
+  registerStudentfinerPrintRFID,
 } from './controller/socketController.js';
 import authRoutes from './router/authRoutes.js'; // 
 import iotRoutes from './router/iot_Routes.js'; // 
 import libStudentRoutes from "./router/library/studentRoute.js"
 import { socketDM } from "./controller/socketController.js";
-import { authMiddleware } from "./utils/authMiddleware.js";
-import { registerStudentfinerPrint } from "./controller/socketController.js";
+import { authMiddleware } from "./config/authMiddleware.js";
 import libraryRoute from "./router/library/libraryRoute.js"
+import libraryBooksRoute from "./router/library/booksRoute.js"
 
 
 // === EXPRESS + HTTP SERVER ===
@@ -40,15 +41,22 @@ app.use(express.static('public'));
 // === Logging ===
 app.use((req, res, next) => {
   const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.socket?.remoteAddress;
-  console.log(`Incoming request from IP: ${ip}`);
+  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const method = req.method;
+
+  console.log(`Incoming request | IP: ${ip} | Method: ${method} | URL: ${fullUrl}`);
+
   next();
 });
 
+
+
 // === REST ROUTES ===
-app.use('/api/iot', iotRoutes);
+app.use('/api/iot', authMiddleware, iotRoutes);
 app.use('/api/auth', authRoutes);
 app.use("/api/library-student", authMiddleware, libStudentRoutes)
 app.use("/api/library", authMiddleware, libraryRoute)
+app.use("/api/library-books", libraryBooksRoute)
 
 
 app.get('/', (req, res) => res.json({ message: 'Welcome to the Home Assistant API' }));
@@ -103,8 +111,15 @@ wss.on('connection', async (ws, request) => {
 
         case "register":
           console.log(data)
-          await registerStudentfinerPrint({  message: data.message, socket: ws, wss: wss })
+          await registerStudentfinerPrintRFID({ message: data.message, socket: ws, wss: wss })
           break;
+        case "registerRFID":
+          console.log(data)
+          await registerStudentfinerPrintRFID({ rfid: true, message: data.message, socket: ws, wss: wss })
+          break;
+
+
+
 
 
         // TODO test the Tope's connection and data exchange

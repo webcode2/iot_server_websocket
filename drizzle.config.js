@@ -1,5 +1,5 @@
 import { defineConfig } from "drizzle-kit";
-import credentials from "./src/utils/credentials";
+import credentials from "./src/config/credentials";
 const  {connectionString}=require("./src/db/config")
 
 export default defineConfig({

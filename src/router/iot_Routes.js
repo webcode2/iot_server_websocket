@@ -1,8 +1,9 @@
 import express from 'express';
+import { deleteDevice, getAllDevices, getDevice, updateDevice } from "../controller/deviceController.js";
 const router = express.Router();
 
 // Create new IoT device
-router.post('/devices', async (req, res) => {
+router.post('/devices/', async (req, res) => {
   try {
     const device = await IoTModel.createDevice(
       req.body.name,
@@ -14,23 +15,17 @@ router.post('/devices', async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
+// get many
+router.get("/devices/", getAllDevices)
 
 // Get device data
-router.post('/data/:appId', async (req, res) => {
-  try {
-    const data = await IoTModel.getDeviceData(req.params.appId);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get('/devices/:appId/', getDevice) 
 
+// update Device
+router.put('devices/:appId/', updateDevice)
 
-
-
-
-
+// delete device
+router.delete("/devices/:appId/", deleteDevice)
 
 
 

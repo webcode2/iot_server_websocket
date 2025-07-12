@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pkg from 'pg';
 import { iotDevices, developer, student, attendance, nBMessage } from "./schema.js";
-import credentials from "../utils/credentials.js";
+import credentials from "../config/credentials.js";
 
 const { Pool } = pkg;
 

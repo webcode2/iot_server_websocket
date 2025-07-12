@@ -1,9 +1,9 @@
 import bcrypt from "bcryptjs";
 import { db } from "../db/config.js";
-import { iotDevices, developer } from "../db/schema.js";
+import { iotDevices, developer, staff } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import credentials from "../utils/credentials.js";
+import credentials from "../config/credentials.js";
 
 
 

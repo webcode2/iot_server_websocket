@@ -14,26 +14,45 @@ import { eq, sql, desc } from "drizzle-orm";
 // === CREATE ===
 export const createStudent = async (req, res) => {
     try {
-        const { firstName, lastNname, matriNo, email, fingerPrintId, rfid } = req.body;
-
-        // Basic validation
-        if (!firstName || !lastNname || !matriNo) {
-            return res.status(400).json({ message: "Required fields missing." });
-        }
-
-        const [created] = await db.insert(student).values({
+        const {
             firstName,
-            lastNname,
-            matriNo,
+            lastName,
+            matricNo,
             email,
             fingerPrintId,
             rfid
-        }).returning();
+        } = req.body;
 
-        res.status(201).json(created);
+        // Basic validation
+        if (!firstName || !lastName || !matricNo) {
+            return res.status(400).json({ message: "Required fields are missing." });
+        }
+
+        const [created] = await db
+            .insert(student)
+            .values({
+                firstName,
+                lastName,
+                matricNo,
+                email,
+                fingerPrintId,
+                rfid
+            })
+            .returning();
+
+        return res.status(201).json(created);
+
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Failed to create student." });
+
+        // ✅ If Postgres unique violation
+        if (err.code === "23505") {
+            return res.status(409).json({
+                message: "Duplicate entry: this student already exists with a unique field.",
+                detail: err.detail // e.g. Key (email)=(test@gmail.com) already exists.
+            });
+        }
+
+        return res.status(500).json({ message: "Failed to create student.", error: err.message });
     }
 };
 
@@ -70,12 +89,12 @@ export const getStudentById = async (req, res) => {
 export const updateStudent = async (req, res) => {
     try {
         const { id } = req.params;
-        const { firstName, lastNname, matriNo, email, fingerPrintId, rfid } = req.body;
+        const { firstName, lastName, matricNo, email, fingerPrintId, rfid } = req.body;
 
         const updates = {};
         if (firstName) updates.firstName = firstName;
-        if (lastNname) updates.lastNname = lastNname;
-        if (matriNo) updates.matriNo = matriNo;
+        if (lastName) updates.lastName = lastName;
+        if (matricNo) updates.matricNo = matricNo;
         if (email) updates.email = email;
         if (fingerPrintId) updates.fingerPrintId = fingerPrintId;
         if (rfid) updates.rfid = rfid;
@@ -84,15 +103,21 @@ export const updateStudent = async (req, res) => {
             .set(updates)
             .where(eq(student.id, id))
             .returning();
-
         if (!updated) {
             return res.status(404).json({ message: "Student not found." });
         }
 
         res.status(200).json(updated);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Failed to update student." });
+        // ✅ If Postgres unique violation
+        if (err.code === "23505") {
+            return res.status(409).json({
+                message: "Duplicate entry: this student already exists with a unique field.",
+                detail: err.detail
+            });
+        }
+
+        return res.status(500).json({ message: "Failed to create student.", error: err.message });
     }
 };
 

@@ -46,26 +46,26 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-CREATE TABLE "students" (
+CREATE TABLE "student" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"firstName" varchar(100),
-	"lastNname" varchar(100),
+	"lastName" varchar(100),
 	"matriNo" varchar(20),
 	"email" varchar(255),
 	"fingerPrintId" varchar(255),
 	"rfid" varchar(100),
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "students_id_unique" UNIQUE("id"),
-	CONSTRAINT "students_matriNo_unique" UNIQUE("matriNo"),
-	CONSTRAINT "students_email_unique" UNIQUE("email"),
-	CONSTRAINT "students_fingerPrintId_unique" UNIQUE("fingerPrintId"),
-	CONSTRAINT "students_rfid_unique" UNIQUE("rfid")
+	CONSTRAINT "student_id_unique" UNIQUE("id"),
+	CONSTRAINT "student_matriNo_unique" UNIQUE("matriNo"),
+	CONSTRAINT "student_email_unique" UNIQUE("email"),
+	CONSTRAINT "student_fingerPrintId_unique" UNIQUE("fingerPrintId"),
+	CONSTRAINT "student_rfid_unique" UNIQUE("rfid")
 );
 --> statement-breakpoint
-ALTER TABLE "attendance" ADD CONSTRAINT "attendance_studentId_students_id_fk" FOREIGN KEY ("studentId") REFERENCES "public"."students"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "attendance" ADD CONSTRAINT "attendance_studentId_student_id_fk" FOREIGN KEY ("studentId") REFERENCES "public"."student"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "iot_devices" ADD CONSTRAINT "iot_devices_developer_id_developer_id_fk" FOREIGN KEY ("developer_id") REFERENCES "public"."developer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "nBmessage" ADD CONSTRAINT "nBmessage_developerId_developer_id_fk" FOREIGN KEY ("developerId") REFERENCES "public"."developer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "nBmessage" ADD CONSTRAINT "nBmessage_staffId_users_id_fk" FOREIGN KEY ("staffId") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_developer_id_developer_id_fk" FOREIGN KEY ("developer_id") REFERENCES "public"."developer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "fingerPrintId_idx" ON "students" USING btree ("fingerPrintId");--> statement-breakpoint
-CREATE INDEX "rfid_idx" ON "students" USING btree ("rfid");
+CREATE INDEX "fingerPrintId_idx" ON "student" USING btree ("fingerPrintId");--> statement-breakpoint
+CREATE INDEX "rfid_idx" ON "student" USING btree ("rfid");

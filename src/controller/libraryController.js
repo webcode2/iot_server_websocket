@@ -1,6 +1,6 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { attendance, student } from "../db/schema.js";
-import { eq, or, sql } from "drizzle-orm";
+import { count, eq, or, sql } from "drizzle-orm";
 import { db } from "../db/config.js";
 
 
@@ -106,7 +106,6 @@ export const addNewAttendance = async (data) => {
         time = new Date(),
         id: userId
     } = parsed.message;
-    console.log(parsed.message)
     const [currentStudent] = await db.select().from(student).where(or(eq(student.fingerPrintId, userId), eq(student.rfid, userId)))
   
 
@@ -123,10 +122,42 @@ export const addNewAttendance = async (data) => {
     }
 
 }
+export const getAttendance = async ({ page = 1, pageSize = 50 } = {}) => {
+    const offset = (page - 1) * pageSize;
+    const [countResult] = await db.select({ total: count() }).from(attendance)
 
+    const totalRaw = countResult?.[0]?.total ?? countResult?.[0]?.count ?? 0;
+    const total = parseInt(totalRaw, 10) || 0;
 
+    const records = await db
+        .select()
+        .from(attendance)
+        .leftJoin(student, eq(attendance.studentId, student.id))
+        .orderBy(attendance.time, "desc")
+        .limit(pageSize)
+        .offset(offset);
 
+    console.log(records)
+    const data = records.map((record) => ({
+        id: record.attendance.id,
+        time: record.attendance.time,
+        accessType: record.attendance.methodUsed,
+        student: {
+            id: record.student?.id,
+            matricNo: record.student?.matriNo,
+            lastName: record.student?.lastName,
+            firstName: record.student?.firstName,
+        },
+    }));
 
+    return {
+        data,
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+    };
+};
 
 export const exportAttendance = async (req, res) => {
     const pdfBytes = await exportAttendanceController()
@@ -135,3 +166,73 @@ export const exportAttendance = async (req, res) => {
     res.send(Buffer.from(pdfBytes));
 }
 
+
+export const getAttendant = async (id) => {
+    if (id) {
+        const [record] = await db
+            .select()
+            .from(attendance)
+            .where(eq(attendance.id, id))
+            .leftJoin(student, eq(attendance.studentId, student.id));
+
+        if (!record) return null;
+
+        return {
+            id: record.attendance.id,
+            time: record.attendance.time,
+            accessType: record.attendance.methodUsed,
+            student: {
+                id: record.student.id,
+                matricNo: record.student.matriNo,
+                lastName: record.student.lastNname,
+            },
+        };
+    } else {
+        const records = await db
+            .select()
+            .from(attendance)
+            .leftJoin(student, eq(attendance.studentId, student.id));
+
+        return records.map((record) => ({
+            id: record.attendance.id,
+            time: record.attendance.time,
+            accessType: record.attendance.methodUsed,
+            student: {
+                id: record.student.id,
+                matricNo: record.student.matriNo,
+                lastName: record.student.lastNname,
+            },
+        }));
+    }
+};
+
+
+export const updateAttendance = async (id, data) => {
+    if (!id) throw new Error("Attendance ID required for update.");
+
+    // Extract valid fields
+    const { accessType, time, studentId } = data;
+
+    const [updated] = await db
+        .update(attendance)
+        .set({
+            methodUsed: accessType,
+            time: time ? new Date(time) : undefined,
+            studentId,
+        })
+        .where(eq(attendance.id, id))
+        .returning();
+
+    return updated;
+};
+
+export const deleteAttendance = async (id) => {
+    if (!id) throw new Error("Attendance ID required for deletion.");
+
+    const deleted = await db
+        .delete(attendance)
+        .where(eq(attendance.id, id))
+        .returning();
+
+    return deleted.length > 0 ? deleted[0] : null;
+};
