@@ -9,4 +9,4 @@ node ./src/config/seedStudents.js
 node ./src/config/seedBook.js
 
 echo "Starting Node.js app..."
-exec nodemon src/app.js
+exec node src/app.js
