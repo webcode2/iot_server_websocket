@@ -178,7 +178,6 @@ export const authForgot = async (req, res) => {
             const token = Math.random().toString(36).substring(2, 7);
             db.update(iotDevices).set({ passwordResetToken: token }).where(eq(iotDevices.id, device.id)).returning()
             // Send email with token
-            console.log(token)
         }
         // Sendd email with token
         res.status(200).json({ message: "Password reset token sent" });

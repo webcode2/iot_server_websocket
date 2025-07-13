@@ -1,15 +1,15 @@
 import { db } from "../db/config.js";
-
-
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { attendance, student } from "../db/schema.js";
 import { eq, sql, desc } from "drizzle-orm";
 
 
+export const getStudentByFingerPrintIdStudentController = async ({ fingerPrintId }) => {
+    const [found] = await db.select().from(student).where(eq(student.fingerPrintId, fingerPrintId));
 
+    return found ? found : { error: "Student not found." }
 
-
-
+}
 
 // === CREATE ===
 export const createStudent = async (req, res) => {

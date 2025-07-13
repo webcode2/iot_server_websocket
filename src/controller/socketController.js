@@ -4,8 +4,9 @@ import { addNewAttendance } from "./libraryController.js";
 import { getUserDevices } from "./deviceController.js";
 import { getMessage, setMessage } from "./messageController.js";
 import credentials from "../config/credentials.js";
-import { getLastFingerprintId } from "./library_studentController.js";
+import { getLastFingerprintId, getStudentByFingerPrintIdStudentController } from "./library_studentController.js";
 import WebSocket from 'ws';
+import { getStudentBorrows } from "./booksController.js";
 
 
 let onlineUsers = new Set();
@@ -91,13 +92,12 @@ export const registerNewConnection = async (ws) => {
 };
 
 export const socketDisconect = async (socket,) => {
-  // console.log(`Client disconnected: ${socket.id}`);
   onlineUsers.delete(socket.user.id);
 
 }
 
 
-export const socketDM = async ({ recipientId, message, socket, wss }) => {
+export const socketDM = async ({ error = false, recipientId, message, socket, wss }) => {
   if (!recipientId) {
     console.error('[socketDM] Recipient ID is required');
     socket.send(JSON.stringify({
@@ -116,7 +116,7 @@ export const socketDM = async ({ recipientId, message, socket, wss }) => {
       client.user.id === recipientId
     ) {
       client.send(JSON.stringify({
-        event: 'direct_message',
+        event: error ? "direct_message_error" : 'direct_message',
         sender: {
           id: socket.user.id,
           name: socket.user.name
@@ -153,7 +153,7 @@ export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
     await socketDM({ recipientId: developer_id, message: { ...atten }, socket: socket, wss: wss });
   }
 };
-
+// called by the WEB INTERFACE "ADMIN"
 export const registerStudentfinerPrintRFID = async ({ rfid = false, message, socket, wss }) => {
   let devices = await getUserDevices({ developer_id: socket.user.id })
   const id = await getLastFingerprintId()
@@ -168,10 +168,34 @@ export const registerStudentfinerPrintRFID = async ({ rfid = false, message, soc
 }
 
 
+export const PromptUserForIdFromDevice = async ({ rfid = false, socket, wss }) => {
+  const devices = await getUserDevices({ developer_id: socket.user.id })
+
+  if (devices.length > 0) {
+    socketDM({ recipientId: devices[0].id, message: { action: "getUser", method: rfid ? "RFID" : "FINGERPRINT" }, socket, wss })
+  } else {
+    await socketDM({ recipientId: socket.user.id, message: { detail: "User has no devices", status: "not sent" }, socket, wss })
+  }
+
+}
 
 
+export const retrieveStudentBorrowedBooks = async ({ rfid = false, accessId, recipientId, socket, wss }) => {
+  // find student with the sent id
+  // find all borrowed books
+  const data = await getStudentBorrows(accessId)
+  // send a dm to the admin 
+  data.error
+    ? socketDM({ error: true, recipientId, message: data.error, socket, wss })
+    : socketDM({ recipientId: recipientId, message: { ...data, action: "borrows" }, socket, wss })
 
+}
 
+export const getStudentByFingerPrintId = async ({ accessId, recipientId, socket, wss }) => {
+  const data = await getStudentByFingerPrintIdStudentController({ fingerPrintId: accessId })
+  return data.message === undefined ? socketDM({ socket, wss, recipientId, message: { ...data, action: "studentDetails" } }) : socketDM({ error: true, recipientId, message: data.error, socket, wss })
+
+}
 
 
 

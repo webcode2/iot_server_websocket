@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../../config/authMiddleware.js";
-import { createBook, deleteBook, getBook, listBooks, updateBook } from "../../controller/booksController.js";
+import { borrowBook, createBook, deleteBook, getBook, listBooks, listBorrows, returnBook, updateBook } from "../../controller/booksController.js";
 
 const router = express.Router();
 
@@ -18,6 +18,14 @@ router.put("/:id/", authMiddleware, updateBook);
 // Delete book (staff/dev only)
 router.delete("/:id/", authMiddleware, deleteBook);
 
+
+
+// ....................................
+// 
+// ....................................
+router.get("/borrow/new/", listBorrows)
+router.post("/borrow/new/", authMiddleware, borrowBook)
+router.post("/return/books/", authMiddleware, returnBook)
 
 
 export default router;

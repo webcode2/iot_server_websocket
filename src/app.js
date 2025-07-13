@@ -15,6 +15,9 @@ import {
   createNewNotification,
   ReadNotification,
   registerStudentfinerPrintRFID,
+  PromptUserForIdFromDevice,
+  retrieveStudentBorrowedBooks,
+  getStudentByFingerPrintId,
 } from './controller/socketController.js';
 import authRoutes from './router/authRoutes.js'; // 
 import iotRoutes from './router/iot_Routes.js'; // 
@@ -44,7 +47,7 @@ app.use((req, res, next) => {
   const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
   const method = req.method;
 
-  console.log(`Incoming request | IP: ${ip} | Method: ${method} | URL: ${fullUrl}`);
+  // console.log(`Incoming request | IP: ${ip} | Method: ${method} | URL: ${fullUrl}`);
 
   next();
 });
@@ -99,47 +102,37 @@ wss.on('connection', async (ws, request) => {
       switch (data.event) {
         // General
         case 'direct_message':
-          console.log(`DM from ${ws.user.id}: ${JSON.stringify(data)}`);
           await socketDM({ recipientId: data.recipientId, message: data.message, socket: ws, wss: wss });
           break;
 
         // Jacks
+
+        // triger by admin
+        case "register":
+          await registerStudentfinerPrintRFID({ socket: ws, wss: wss, rfid: data.method.toLowerCase() === "rfid" })
+          break;
+        // Fired by admin
+        case "promptUser":
+          await PromptUserForIdFromDevice({ socket: ws, wss: wss, rfid: data.method.toLowerCase() === "rfid" })
+          break;
+
+
+        // trigger by microtroller
+        // add attendace log
         case "addlog":
           await addAttendantLog({ data: data, developer_id: ws.user.developer_id, socket: ws, wss: wss })
-          console.log(data)
           break;
 
-        case "register":
-          console.log(data)
-          await registerStudentfinerPrintRFID({ message: data.message, socket: ws, wss: wss })
+        // to find student owed books  using their fingerprint id
+        case "retrieveStudentBorrowedBooks":
+          await retrieveStudentBorrowedBooks({ recipientId: data.recipientId, socket: ws, accessId: data.accessId, wss: wss, rfid: data.method?.toLowerCase() === "rfid" })
           break;
-        case "registerRFID":
-          console.log(data)
-          await registerStudentfinerPrintRFID({ rfid: true, message: data.message, socket: ws, wss: wss })
-          break;
-
-
-
-
-
-        // TODO test the Tope's connection and data exchange
-        // TOPE
-        // its only the admin that create message thus socket wont have developer_id rather just usere.id
-        case "createNewNotice":
-          createNewNotification({ developerId: ws.user.id, payload })
-          break;
-
-        case "readNotice":
-          ReadNotification({ socket: ws, wss: wss })
-          break;
-
-        case "sync":
-          synchroniseAllDevices({ ws: ws, wss: wss })
-          break;
-
+        //  to register student We only need student details
+        case "retrieveUserAndSendToAdmin":
+          await getStudentByFingerPrintId({ accessId: data.accessId, recipientId: data.recipientId, socket: ws, wss })
+          break
 
         default:
-          console.log('Unknown message type:', data.event);
       }
     } catch (err) {
       console.error('Failed to process message:', err);

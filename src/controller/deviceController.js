@@ -72,7 +72,6 @@ export const getUserDevices = async ({ developer_id = "" }) => {
         })
         return devices
     } catch (err) {
-        console.log(err)
         return []
     }
 

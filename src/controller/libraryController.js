@@ -68,7 +68,6 @@ const exportAttendanceController = async () => {
         const values = [rec.matricNo, name, time, rec.accessType];
 
         values.forEach((val, i) => {
-            console.log(val)
             page.drawText(val !== null ? val.toString() : "_", {
                 x: 50 + colWidths.slice(0, i).reduce((a, b) => a + b, 0),
                 y,
@@ -137,7 +136,6 @@ export const getAttendance = async ({ page = 1, pageSize = 50 } = {}) => {
         .limit(pageSize)
         .offset(offset);
 
-    console.log(records)
     const data = records.map((record) => ({
         id: record.attendance.id,
         time: record.attendance.time,

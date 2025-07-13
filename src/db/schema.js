@@ -83,7 +83,13 @@ export const book = pgTable("book", {
 });
 
 
-
+export const borrow = pgTable("borrow", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookId: uuid("bookId").notNull().references(() => book.id, { onDelete: "cascade" }),
+  borrowerId: uuid("borrowerId").notNull().references(() => student.id, { onDelete: "cascade" }),
+  borrowedOn: timestamp("borrowedOn", { withTimezone: true }).defaultNow().notNull(),
+  returnedOn: timestamp("returnedOn", { withTimezone: true }).default(null),
+});
 
 
 // Tope's Notice Boar
