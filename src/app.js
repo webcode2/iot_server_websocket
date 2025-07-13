@@ -47,7 +47,7 @@ app.use((req, res, next) => {
   const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
   const method = req.method;
 
-  // console.log(`Incoming request | IP: ${ip} | Method: ${method} | URL: ${fullUrl}`);
+  console.log(`Incoming request | IP: ${ip} | Method: ${method} | URL: ${fullUrl}`);
 
   next();
 });
