@@ -27,7 +27,8 @@
     "node-pg-migrate": "^7.9.1",
     "pdf-lib": "^1.17.1",
     "pg": "^8.14.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

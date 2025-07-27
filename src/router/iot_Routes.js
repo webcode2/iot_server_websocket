@@ -1,5 +1,6 @@
 import express from 'express';
 import { deleteDevice, getAllDevices, getDevice, updateDevice } from "../controller/deviceController.js";
+import { authMiddleware } from "../config/authMiddleware.js";
 const router = express.Router();
 
 // Create new IoT device
@@ -16,7 +17,7 @@ router.post('/devices/', async (req, res) => {
   }
 });
 // get many
-router.get("/devices/", getAllDevices)
+router.get("/devices/", authMiddleware, getAllDevices)
 
 // Get device data
 router.get('/devices/:appId/', getDevice) 

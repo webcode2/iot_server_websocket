@@ -1,18 +1,19 @@
-
 import jwt from 'jsonwebtoken';
-import { addNewAttendance } from "./libraryController.js";
 import { getUserDevices } from "./deviceController.js";
 import { getMessage, setMessage } from "./messageController.js";
 import credentials from "../config/credentials.js";
-import { getLastFingerprintId, getStudentByFingerPrintIdStudentController } from "./library_studentController.js";
-import WebSocket from 'ws';
-import { getStudentBorrows } from "./booksController.js";
 
-
+// Track online users/devices and connections
 let onlineUsers = new Set();
-let onlineDevices = new Set()
+let onlineDevices = new Set();
 const connections = new Map(); // userId → Set of ws connections
 
+// Helper to send JSON
+function sendJSON(ws, event, data) {
+  if (ws.readyState === ws.OPEN) {
+    ws.send(JSON.stringify({ event, data }));
+  }
+}
 
 const loadDevices = async ({ ws }) => {
   const userId = ws.user.id;
@@ -21,66 +22,69 @@ const loadDevices = async ({ ws }) => {
 
   if (connections.has(userId)) {
     connections.get(userId).forEach(client => {
-      client.send(JSON.stringify({
-        type: "SERVER_EVENT",
+      sendJSON(client, "SERVER_EVENT", {
         sender: "SERVER",
         devices: userOnlineDevices,
         timestamp: new Date()
-      }));
+      });
     });
   }
 };
 
 const notifyApp = async ({ developer_id, ws }) => {
-  if (!developer_id) throw new Error("developer_id required");
-  if (!ws) throw new Error("ws instance required");
-
+  if (!developer_id || !ws) return;
   if (connections.has(developer_id)) {
     connections.get(developer_id).forEach(client => {
-      client.send(JSON.stringify({
-        type: "SERVER_EVENT",
+      sendJSON(client, "SERVER_EVENT", {
         sender: "SERVER",
         devices: { ...ws.user },
         timestamp: new Date()
-      }));
+      });
     });
   }
 };
 
+// Notify developer when a device goes offline
+const notifyDeviceDisconnect = async ({ developer_id, device_id }) => {
+  if (!developer_id || !device_id) return;
+  if (connections.has(developer_id)) {
+    connections.get(developer_id).forEach(client => {
 
 
-
-
-export const socketAuthMiddleware = async (token) => {
-  return new Promise((resolve, reject) => {
-    if (!token) {
-      return resolve(null);
-    }
-    jwt.verify(token, credentials.app_secret, (err, decoded) => {
-      if (err || !decoded) return resolve(null);
-
-      const user = {
-        name: decoded.account_name,
-        id: decoded.account_id,
-        account_type: decoded.account_type,
-        developer_id: decoded.account_type === "device" ? decoded.developer_id : null
-      };
-      resolve(user);
+      sendJSON(client, "SERVER_EVENT", {
+        sender: "SERVER",
+        event: "device_offline",
+        device_id,
+        timestamp: new Date()
+      });
     });
-  });
-}
+  }
+};
 
+export const socketAuthMiddleware = async (data, ws, req) => {
+  // expects data = { token }
+  const token = data?.token;
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, credentials.app_secret);
+    return {
+      name: decoded.account_name,
+      id: decoded.account_id,
+      account_type: decoded.account_type,
+      developer_id: decoded.developer_id
+    };
+  } catch (e) {
+    return null;
+  }
+};
 
 export const registerNewConnection = async (ws) => {
   const userId = ws.user.id;
-
-  // Add connection to map
   if (!connections.has(userId)) {
     connections.set(userId, new Set());
   }
   connections.get(userId).add(ws);
 
-  // Track type
   if (ws.user.account_type === "developer") {
     onlineUsers.add(userId);
     await loadDevices({ ws });
@@ -88,170 +92,86 @@ export const registerNewConnection = async (ws) => {
     onlineDevices.add(userId);
     await notifyApp({ developer_id: ws.user.developer_id, ws });
   }
-  return
 };
 
-export const socketDisconect = async (socket,) => {
-  onlineUsers.delete(socket.user.id);
 
+
+export const getDeviceStatus = ({ ws, user, devices }) => {
+
+  const new_state = devices.map((deviceId) => {
+    return { status: connections.has(deviceId), deviceId: deviceId }
+  })
+  sendJSON(ws, "heart_beat", new_state)
 }
 
 
-export const socketDM = async ({ error = false, recipientId, message, socket, wss }) => {
-  if (!recipientId) {
-    console.error('[socketDM] Recipient ID is required');
-    socket.send(JSON.stringify({
-      event: 'error',
-      message: 'Recipient ID is required'
-    }));
-    return;
+export const socketDisconect = async (ws) => {
+  if (!ws.user) return;
+  const userId = ws.user.id;
+  onlineUsers.delete(userId);
+  onlineDevices.delete(userId);
+  if (connections.has(userId)) {
+    connections.get(userId).delete(ws);
+    if (connections.get(userId).size === 0) {
+      connections.delete(userId);
+      // If this is a device, notify its developer
+      if (ws.user.account_type === "device" && ws.user.developer_id) {
+        await notifyDeviceDisconnect({ developer_id: ws.user.developer_id, device_id: userId });
+      }
+    }
   }
+};
 
+// Direct message: send to recipient if online
+export const socketDM = ({ recipientId, message, ws, clients }) => {
   let found = false;
-
-  wss.clients.forEach(client => {
+  clients.forEach((user, clientWs) => {
     if (
-      client.readyState === WebSocket.OPEN &&
-      client.user &&
-      client.user.id === recipientId
+      clientWs.readyState === clientWs.OPEN &&
+      clientWs.user &&
+      clientWs.user.id === recipientId
     ) {
-      client.send(JSON.stringify({
-        event: error ? "direct_message_error" : 'direct_message',
+      sendJSON(clientWs, "direct_message", {
         sender: {
-          id: socket.user.id,
-          name: socket.user.name
+          id: ws.user.id,
+          name: ws.user.name
         },
         message,
         timestamp: Date.now()
-      }));
-
+      });
       found = true;
     }
   });
 
   if (!found) {
-    console.warn(`[socketDM] Recipient ${recipientId} not online`);
-    // Notify the sender that the recipient is offline
-    socket.send(JSON.stringify({
-      event: 'direct_message_error',
+    sendJSON(ws, "direct_message_error", {
       message: `Recipient ${recipientId} is not online.`,
       recipientId
-    }));
+    });
   }
 };
 
 
 
-
-
-// JAcks Library
-
-export const addAttendantLog = async ({ data, developer_id, socket, wss }) => {
-  const atten = await addNewAttendance(data);
-
-  if (atten) {
-    await socketDM({ recipientId: developer_id, message: { ...atten }, socket: socket, wss: wss });
+export const ReadNotification = async ({ developerId, userId, ws }) => {
+  const data = await getMessage({ developer_id: developerId });
+  if (!data) {
+    sendJSON(ws, "read_messages", {
+      sender: "SERVER",
+      data: "No messages found."
+    });
+    return;
   }
-};
-// called by the WEB INTERFACE "ADMIN"
-export const registerStudentfinerPrintRFID = async ({ rfid = false, message, socket, wss }) => {
-  let devices = await getUserDevices({ developer_id: socket.user.id })
-  const id = await getLastFingerprintId()
-
-  if (devices.length > 0) {
-    rfid
-      ? socketDM({ recipientId: devices[0].id, message: { action: "registerRFID", }, socket, wss })
-      : socketDM({ recipientId: devices[0].id, message: { action: "register", id: id.lastFingerprintId }, socket, wss })
-  } else {
-    await socketDM({ recipientId: socket.user.id, message: { detail: "User has no devices", status: "not sent" }, socket, wss })
-  }
-}
-
-
-export const PromptUserForIdFromDevice = async ({ rfid = false, socket, wss }) => {
-  const devices = await getUserDevices({ developer_id: socket.user.id })
-
-  if (devices.length > 0) {
-    socketDM({ recipientId: devices[0].id, message: { action: "getUser", method: rfid ? "RFID" : "FINGERPRINT" }, socket, wss })
-  } else {
-    await socketDM({ recipientId: socket.user.id, message: { detail: "User has no devices", status: "not sent" }, socket, wss })
-  }
-
-}
-
-
-export const retrieveStudentBorrowedBooks = async ({ rfid = false, accessId, recipientId, socket, wss }) => {
-  // find student with the sent id
-  // find all borrowed books
-  const data = await getStudentBorrows(accessId)
-  // send a dm to the admin 
-  data.error
-    ? socketDM({ error: true, recipientId, message: data.error, socket, wss })
-    : socketDM({ recipientId: recipientId, message: { ...data, action: "borrows" }, socket, wss })
-
-}
-
-export const getStudentByFingerPrintId = async ({ accessId, recipientId, socket, wss }) => {
-  const data = await getStudentByFingerPrintIdStudentController({ fingerPrintId: accessId })
-  return data.message === undefined ? socketDM({ socket, wss, recipientId, message: { ...data, action: "studentDetails" } }) : socketDM({ error: true, recipientId, message: data.error, socket, wss })
-
-}
-
-
-
-
-// TOPE Notice Boaard
-export const createNewNotification = async ({ payload, developerId, socket, wss }) => {
-  const { duration, message } = payload;
-
-  let resolvedDeveloperId = developerId;
-  let staff_id = null;
-
-  // 1️⃣ See if it’s a staff
-  const staffRow = await db.select().from(staff).where(eq(staff.id, developerId)).then(rows => rows[0]);
-
-  if (staffRow) {
-    // It’s a staff — get FK host id
-    resolvedDeveloperId = staffRow.developerId; // the FK column
-    staff_id = staffRow.id;
-  }
-
-  const data = await setMessage({
-    developer_id: resolvedDeveloperId,
-    duration,
-    message,
-    staff_id
+  sendJSON(ws, "read_messages", {
+    sender: "SERVER",
+    data
   });
-  if (staff_id !== null) {
-    await socketDM({
-      recipientId: staff_id,
-      message: { type: "SERVER_EVENT", data },
-      socket,
-      wss
-    })
-  }
 
-  await socketDM({
-    recipientId: resolvedDeveloperId,
-    message: { type: "SERVER_EVENT", data },
-    socket,
-    wss
+  socketDM({
+    recipientId: developerId,
+    message: { event: "SERVER_EVENT", data: "Your device just read from the database" },
+    ws,
+    clients: connections
   });
 };
-// get called when the board reads data
-export const ReadNotification = async ({ socket, wss }) => {
-  const data = await getMessage({ developer_id: ws.user.developer_id });
-
-  await socketDM({ recipientId: userId, message: { event: "SERVER_EVENT", data }, socket: socket, wss: wss });
-  await socketDM({ recipientId: ws.user.developer_id, message: { event: "SERVER_EVENT", data: "Your device just read from the database" }, socket: socket, wss: wss });
-};
-
-export const synchroniseAllDevices = async ({ ws, wss }) => {
-  const devices = await getUserDevices({ deceloper_id: ws.user.id })
-  devices.forEach(device => {
-    socketDM({ recipientId: device.id, message: { action: "sync", }, socket: ws, wss: wss })
-  })
-
-}
-
 

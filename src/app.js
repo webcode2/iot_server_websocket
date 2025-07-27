@@ -1,159 +1,137 @@
-import WebSocket from 'ws';
 import express from 'express';
 import http from 'http';
-import { Server } from 'socket.io';
-
 import cors from 'cors';
+import { WebSocketServer } from 'ws';
+import url from 'url';
 
+import iotRoutes from './router/iot_Routes.js';
+import authRoutes from './router/authRoutes.js';
+import messageRoutes from './router/messageRoute.js';
 import { pool } from './db/config.js';
 
 import {
   socketAuthMiddleware,
   socketDisconect,
   registerNewConnection,
-  addAttendantLog,
-  createNewNotification,
+  socketDM,
   ReadNotification,
-  registerStudentfinerPrintRFID,
-  PromptUserForIdFromDevice,
-  retrieveStudentBorrowedBooks,
-  getStudentByFingerPrintId,
+  getDeviceStatus,
 } from './controller/socketController.js';
-import authRoutes from './router/authRoutes.js'; // 
-import iotRoutes from './router/iot_Routes.js'; // 
-import libStudentRoutes from "./router/library/studentRoute.js"
-import { socketDM } from "./controller/socketController.js";
-import { authMiddleware } from "./config/authMiddleware.js";
-import libraryRoute from "./router/library/libraryRoute.js"
-import libraryBooksRoute from "./router/library/booksRoute.js"
 
-
-// === EXPRESS + HTTP SERVER ===
 const app = express();
 const server = http.createServer(app);
 
-// === WEBSOCKET SERVER ===
-const wss = new WebSocket.Server({ noServer: true });
-
-// === Middleware ===
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(express.static('public'));
 
-// === Logging ===
 app.use((req, res, next) => {
-  const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.socket?.remoteAddress;
-  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-  const method = req.method;
-
-  console.log(`Incoming request | IP: ${ip} | Method: ${method} | URL: ${fullUrl}`);
-
+  const ip =
+    req.headers['x-forwarded-for']?.split(',').shift() ||
+    req.socket?.remoteAddress;
+  console.log(`Incoming request from IP: ${ip}`);
   next();
 });
 
+// WebSocket server
+const wss = new WebSocketServer({ server, path: "/ws" });
 
+// Store clients and their user info
+const clients = new Map();
 
-// === REST ROUTES ===
-app.use('/api/iot', authMiddleware, iotRoutes);
-app.use('/api/auth', authRoutes);
-app.use("/api/library-student", authMiddleware, libStudentRoutes)
-app.use("/api/library", authMiddleware, libraryRoute)
-app.use("/api/library-books", libraryBooksRoute)
+// Helper: send JSON
+function sendJSON(ws, event, data) {
+  ws.send(JSON.stringify({ event, data }));
+}
 
+// Authenticate and register connection
+wss.on('connection', async (ws, req) => {
+  ws.isAlive = true;
 
-app.get('/', (req, res) => res.json({ message: 'Welcome to the Home Assistant API' }));
+  // Parse jwtoken from query string
+  const { query } = url.parse(req.url, true);
+  const jwtoken = query.token;
 
-// === Upgrade handler for WS ===
-server.on('upgrade', async (request, socket, head) => {
-  try {
-    const url = new URL(request.url, `http://${request.headers.host}`);
-    const token =
-      url.searchParams.get('token') ||
-      (request.headers.authorization && request.headers.authorization.split(' ')[1]);
+  // Validate token immediately on connection
+  const user = await socketAuthMiddleware({ token: jwtoken }, ws, req);
+  if (!user) {
+    sendJSON(ws, 'error', { message: 'Authentication failed: invalid or missing token' });
+    ws.close();
+    return;
+  }
+  
+  ws.user = user;
+  clients.set(ws, user);
+  await registerNewConnection(ws);
+  sendJSON(ws, 'auth_success', { user });
 
-    const user = await socketAuthMiddleware(token);
-    if (!user) {
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      socket.destroy();
+  ws.on('pong', () => { ws.isAlive = true; });
+
+  ws.on('message', async (msg) => {
+    let parsed;
+    try {
+      parsed = JSON.parse(msg);
+    } catch (e) {
+      sendJSON(ws, 'error', { message: 'Invalid JSON' });
       return;
     }
+    const { event, data } = parsed;
 
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      ws.user = user; // Attach user for later use
-      wss.emit('connection', ws, request);
-    });
-  } catch (err) {
-    console.error('Upgrade error:', err);
-    socket.destroy();
-  }
-});
+    // Now handle other events (no need to check auth again)
+    switch (event) {
+      case 'direct_message':
+        socketDM({ recipientId: data.recipientId, message: data.message, ws, clients });
+        break;
 
+      // device
+      case 'read_messages':
+        console.log(ws.user)
+        if (ws.user.account_type !== 'device') {
+          sendJSON(ws, 'error', { message: 'Only devices can read messages' });
+          return;
+        }
+        ReadNotification({ developerId: ws.user.developer_id, userId: ws.user.id, ws });
+        break;
 
-// === WebSocket connection logic ===
-wss.on('connection', async (ws, request) => {
-  await registerNewConnection(ws);
+      case "heart_beat":
+        getDeviceStatus({ ws, user: data.user, devices: data.devices });
+        break
 
-  ws.on('message', async (message) => {
-
-    try {
-      const data = JSON.parse(message);
-
-      switch (data.event) {
-        // General
-        case 'direct_message':
-          await socketDM({ recipientId: data.recipientId, message: data.message, socket: ws, wss: wss });
-          break;
-
-        // Jacks
-
-        // triger by admin
-        case "register":
-          await registerStudentfinerPrintRFID({ socket: ws, wss: wss, rfid: data.method.toLowerCase() === "rfid" })
-          break;
-        // Fired by admin
-        case "promptUser":
-          await PromptUserForIdFromDevice({ socket: ws, wss: wss, rfid: data.method.toLowerCase() === "rfid" })
-          break;
-
-
-        // trigger by microtroller
-        // add attendace log
-        case "addlog":
-          await addAttendantLog({ data: data, developer_id: ws.user.developer_id, socket: ws, wss: wss })
-          break;
-
-        // to find student owed books  using their fingerprint id
-        case "retrieveStudentBorrowedBooks":
-          await retrieveStudentBorrowedBooks({ recipientId: data.recipientId, socket: ws, accessId: data.accessId, wss: wss, rfid: data.method?.toLowerCase() === "rfid" })
-          break;
-        //  to register student We only need student details
-        case "retrieveUserAndSendToAdmin":
-          await getStudentByFingerPrintId({ accessId: data.accessId, recipientId: data.recipientId, socket: ws, wss })
-          break
-
-        default:
-      }
-    } catch (err) {
-      console.error('Failed to process message:', err);
+      default:
+        console.log(data)
+        sendJSON(ws, 'error', { message: 'Unknown event' });
     }
   });
 
   ws.on('close', () => {
     socketDisconect(ws);
+    clients.delete(ws);
   });
-
-  // Optional: send greeting
-  ws.send(JSON.stringify({ type: 'connection_ack', message: 'Connected successfully' }));
 });
 
-// === START SERVER ===
-const PORT = process.env.PORT || 3000;
+// Heartbeat to detect dead connections
+setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (!ws.isAlive) return ws.terminate();
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000);
 
+// Routes
+app.use('/api/iot', iotRoutes);
+app.use("/api/auth", authRoutes);
+app.use('/api/messages', messageRoutes);
+app.get('/', (req, res) => res.json({ message: 'Welcome to the Home Assistant API' }));
+
+const PORT = process.env.PORT || 4000;
 async function startApp() {
   try {
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server ready on port ${PORT}`);
+      console.log('Server ready on port ' + PORT);
+      console.log('WebSocket server running at ws://localhost:' + PORT + '/ws');
     });
   } catch (err) {
     console.error('Failed to start:', err);
@@ -163,7 +141,7 @@ async function startApp() {
 
 startApp();
 
-// === Graceful shutdown ===
+// Graceful shutdown
 process.on('SIGTERM', async () => {
   await pool.end();
   process.exit(0);

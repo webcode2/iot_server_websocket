@@ -12,12 +12,15 @@ async function generateToken(data=undefined) {
     if (!credentials.app_secret)         throw new Error('SECRET environment variable is not set');
     if (data===undefined) throw new Error("jwt payload isn't attached")
     return jwt.sign({...data}, credentials.app_secret, {
-        expiresIn: '30d'
+        expiresIn: '90d'
     });
 }
 
 
 export const authLogin = async (req, res) => {
+    if (!req.body || !req.body.email || !req.body.password) {
+        return res.status(400).json({ error: 'Email and password are required.' });
+    }
     const { email, password } = req.body;
 
     try {
@@ -27,13 +30,15 @@ export const authLogin = async (req, res) => {
         if (foundDeveloper) {
             const valid = bcrypt.compareSync(password, foundDeveloper.password);
             if (!valid) {
-                return res.status(401).json({ error: 'Invalid email or password' });
+                return res.status(404).json({ error: 'Invalid email or password' });
             }
 
             const jwt_token = await generateToken({
                 account_name: foundDeveloper.name,
                 account_id: foundDeveloper.id,
-                account_type: 'developer'
+                account_type: 'developer',
+                developer_id: foundDeveloper.id, // so you know who owns this staff
+
             });
 
             const { passwordResetToken: __, password: _, ...safeData } = foundDeveloper;
@@ -79,20 +84,24 @@ export const deviceAuthLogin = async (req, res) => {
                 return res.status(200).json({ jwt_token: await generateToken({ account_name: data.name, account_id: data.id, account_type: "device",developer_id:data.developerId }), ...data, password: undefined });
             }
         }
-        return res.status(401).json({ error: "Invalid email or password" });
+        return res.status(404).json({ error: "Invalid email or password" });
 
     } catch (err) { res.status(400).json({ error: err.message }); }
 }
 
 
 export const authRegister = async (req, res) => {
-    // Hash the password
-    if (!req.body?.password) {
-        return res.status(400).json({ error: "Password is required" });
+    if (!req.body || !req.body.email || !req.body.password || !req.body.name) {
+        return res.status(400).json({ error: 'Name, Email and password are required.' });
+    }
+
+    // Check if developer already exists
+    const [existingDev] = await db.select().from(developer).where(eq(developer.email, req.body.email));
+    if (existingDev) {
+        return res.status(409).json({ error: "A user with this email already exists." });
     }
 
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
-
 
     try {
         // Insert developer
@@ -105,41 +114,35 @@ export const authRegister = async (req, res) => {
             name: req.body.name,
             password: hashedPassword,
             developerId: dev.id
-        })
-            .returning();
+        }).returning();
 
-        // Create clean response objects
+        // Clean developer object
         const cleanDev = {
             id: dev.id,
             name: dev.name,
             email: dev.email,
             createdAt: dev.createdAt
-            // Include other non-sensitive fields
         };
 
+        // Clean device object (optional, attached as nested property)
         const cleanDevice = {
             id: device.id,
             name: device.name,
             createdAt: device.createdAt
-            // Include other non-sensitive fields
         };
 
         res.status(201).json({
             ...cleanDev,
             jwt_token: await generateToken({
                 account_name: dev.name,
-                account_id: dev.id,account_type:"developer"
-                
+                account_id: dev.id,
+                account_type: "developer"
             }),
-            device: cleanDevice
         });
     } catch (err) {
         res.status(400).json({
             error: err.message,
-            // For debugging, you might want to include a simplified error
-            details: process.env.NODE_ENV === 'development' ? {
-                stack: err.stack
-            } : undefined
+            details: process.env.NODE_ENV === 'development' ? { stack: err.stack } : undefined
         });
     }
 }
@@ -190,10 +193,7 @@ export const authForgot = async (req, res) => {
 
 
 
-// tope staff
-// add Users{Staff}
 
-// === CREATE ===
 export const createStaff = async (req, res) => {
     try {
         const { name, email, password, developerId } = req.body;
@@ -217,6 +217,7 @@ export const createStaff = async (req, res) => {
         res.status(500).json({ message: "Failed to create staff." });
     }
 };
+
 
 // === READ ALL ===
 export const getAllStaff = async (req, res) => {
@@ -314,3 +315,6 @@ export const deleteStaff = async (req, res) => {
         res.status(500).json({ message: "Failed to delete staff." });
     }
 };
+
+
+

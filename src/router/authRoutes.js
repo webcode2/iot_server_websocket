@@ -24,7 +24,6 @@ router.post("/forget/",authForgot);
 
 // IIOT DEVICE AUTH
 router.post("/device/login/",deviceAuthLogin)
-router.post("/re",()=>{})
 
 
 

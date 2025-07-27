@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pkg from 'pg';
-import { iotDevices, developer, student, attendance, nBMessage } from "./schema.js";
+import { iotDevices, developer, staff, Message } from "./schema.js";
 import credentials from "../config/credentials.js";
 
 const { Pool } = pkg;
@@ -19,11 +19,8 @@ const db = drizzle(pool, {
     // Add all your tables 
     developer,
     iotDevices,
-    // Jack's Library
-    student,
-    attendance,
-    // TOPE's Notice Board
-    nBMessage
+    Message,
+    staff
 
   }
 });
