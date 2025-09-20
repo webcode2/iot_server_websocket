@@ -67,6 +67,7 @@ export const socketAuthMiddleware = async (data, ws, req) => {
   if (!token) return null;
   try {
     const decoded = jwt.verify(token, credentials.app_secret);
+    console.log(decoded)
     return {
       name: decoded.account_name,
       id: decoded.account_id,
@@ -96,12 +97,12 @@ export const registerNewConnection = async (ws) => {
 
 
 
-export const getDeviceStatus = ({ ws, user, devices }) => {
+export const getDeviceStatus = ({ ws, user, devices = [] }) => {
 
   const new_state = devices.map((deviceId) => {
     return { status: connections.has(deviceId), deviceId: deviceId }
   })
-  sendJSON(ws, "heart_beat", new_state)
+  sendJSON(ws, "checkBoardState", new_state)
 }
 
 
@@ -123,7 +124,7 @@ export const socketDisconect = async (ws) => {
 };
 
 // Direct message: send to recipient if online
-export const socketDM = ({ recipientId, message, ws, clients }) => {
+export const socketDM = ({ recipientId, message, ws, clients, event = "direct_message" }) => {
   let found = false;
   clients.forEach((user, clientWs) => {
     if (
@@ -131,7 +132,7 @@ export const socketDM = ({ recipientId, message, ws, clients }) => {
       clientWs.user &&
       clientWs.user.id === recipientId
     ) {
-      sendJSON(clientWs, "direct_message", {
+      sendJSON(clientWs, event, {
         sender: {
           id: ws.user.id,
           name: ws.user.name
@@ -155,6 +156,7 @@ export const socketDM = ({ recipientId, message, ws, clients }) => {
 
 export const ReadNotification = async ({ developerId, userId, ws }) => {
   const data = await getMessage({ developer_id: developerId });
+  console.log(data)
   if (!data) {
     sendJSON(ws, "read_messages", {
       sender: "SERVER",

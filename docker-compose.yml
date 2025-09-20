@@ -1,5 +1,6 @@
 
 services:
+
   app:
     build:
       context: .
@@ -9,7 +10,7 @@ services:
     networks:
       - app_network
     ports:
-      - "3000:3000"
+      - "4000:4000"
     secrets:
       - db_password
       - app_secret
@@ -74,10 +75,14 @@ services:
       - db_password
     networks:
       - app_network
+    # environment:
+    #   POSTGRES_DB: iot_platform
+    #   POSTGRES_USER: postgres
+    #   POSTGRES_PASSWORD_FILE: /run/secrets/db_password
     environment:
-      POSTGRES_DB: iot_platform
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD} 
 
 
     ports:  

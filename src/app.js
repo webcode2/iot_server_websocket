@@ -68,40 +68,79 @@ wss.on('connection', async (ws, req) => {
   sendJSON(ws, 'auth_success', { user });
 
   ws.on('pong', () => { ws.isAlive = true; });
-
   ws.on('message', async (msg) => {
     let parsed;
     try {
       parsed = JSON.parse(msg);
     } catch (e) {
-      sendJSON(ws, 'error', { message: 'Invalid JSON' });
+      sendJSON(ws, 'error', { message: 'Invalid JSON format' });
       return;
     }
+
     const { event, data } = parsed;
 
-    // Now handle other events (no need to check auth again)
+    if (!event) {
+      sendJSON(ws, 'error', { message: 'Missing event field' });
+      return;
+    }
+
+    try {
+      console.log(event)
+      console.log(data)
     switch (event) {
+
       case 'direct_message':
+        if (!data || !data.recipientId || !data.message) {
+          sendJSON(ws, 'error', { message: 'Missing recipientId or message' });
+          return;
+        }
+
         socketDM({ recipientId: data.recipientId, message: data.message, ws, clients });
         break;
-
-      // device
       case 'read_messages':
-        console.log(ws.user)
+        console.log("read_messages")
+        if (!ws.user) {
+          sendJSON(ws, 'error', { message: 'Unauthorized' });
+          return;
+        }
         if (ws.user.account_type !== 'device') {
           sendJSON(ws, 'error', { message: 'Only devices can read messages' });
           return;
         }
-        ReadNotification({ developerId: ws.user.developer_id, userId: ws.user.id, ws });
+
+        await ReadNotification({ developerId: ws.user.developer_id, userId: ws.user.id, ws });
         break;
 
-      case "heart_beat":
+
+      case 'heart_beat':
+        if (!data || !data.user || !data.devices) {
+          sendJSON(ws, 'error', { message: 'Invalid heartbeat payload' });
+          return;
+        }
         getDeviceStatus({ ws, user: data.user, devices: data.devices });
+        break;
+      case 'reboot':
+        socketDM({ event: "reboot", recipientId: data.recipientId, clients, message: data.message, ws });
         break
+      case "reRead":
+        ReadNotification({ developerId: ws.user.developer_id, userId: ws.user.id, ws });
+
+        break
+      //  called  y developer
+
+      case "checkBoardState":
+        getDeviceStatus({ user: ws.user.id, devices: [ws.user.device_id], })
+
+        break
+      case "sync_device":
+        socketDM({ event: "sync_device", clients, message: data.message, recipientId: data.recipientId, ws })
 
       default:
-        console.log(data)
-        sendJSON(ws, 'error', { message: 'Unknown event' });
+          sendJSON(ws, 'error', { message: `Unknown event: ${event}` });
+      }
+    } catch (err) {
+      console.error(`❌ Error handling event "${event}":`, err);
+      sendJSON(ws, 'error', { message: 'Internal server error' });
     }
   });
 
@@ -132,6 +171,13 @@ async function startApp() {
     server.listen(PORT, '0.0.0.0', () => {
       console.log('Server ready on port ' + PORT);
       console.log('WebSocket server running at ws://localhost:' + PORT + '/ws');
+
+      // create a super admin  details from env
+      // SUPER_USER=ADMIN
+      // SUPER_USER_EMAIL=test@test.com
+      // SUPER_USER_PASSWORD=password
+
+
     });
   } catch (err) {
     console.error('Failed to start:', err);

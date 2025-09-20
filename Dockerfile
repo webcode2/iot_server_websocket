@@ -22,7 +22,8 @@ COPY docker_entrypoint.sh ./
 RUN chmod +x ./docker_entrypoint.sh
 
 # Expose port
-EXPOSE 3000
+EXPOSE 4000
 
 # Run the entrypoint script
-ENTRYPOINT ["./docker_entrypoint.sh"]
+# ENTRYPOINT ["./docker_entrypoint.sh"]
+CMD ["sh", "-c", "npm run seed && npm run dev"]
