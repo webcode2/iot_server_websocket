@@ -124,6 +124,30 @@ export const getDeviceStatus = ({ ws, user, devices = [] }) => {
   sendJSON(ws, "heart_beat", new_state);
 };
 
+export const reboot = async (id) => {
+  // Remove from online sets
+  onlineUsers.delete(id);
+  onlineDevices.delete(id);
+
+  // Close and remove all connections
+  if (connections.has(id)) {
+    const sockets = connections.get(id);
+
+    // Optional: gracefully close all sockets
+    for (const ws of sockets) {
+      try {
+        ws.close(1000, "Rebooted"); // 1000 = Normal Closure
+      } catch (err) {
+        console.error(`Failed to close socket for ${id}:`, err);
+      }
+    }
+
+    // Finally, delete the entry
+    connections.delete(id);
+  }
+};
+
+
 
 // Direct message: send to recipient if online
 export const socketDM = ({ recipientId, message, ws, clients, event = "direct_message" }) => {

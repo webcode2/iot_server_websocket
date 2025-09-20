@@ -16,6 +16,7 @@ import {
   socketDM,
   ReadNotification,
   getDeviceStatus,
+  reboot,
 } from './controller/socketController.js';
 
 const app = express();
@@ -116,11 +117,13 @@ wss.on('connection', async (ws, req) => {
           sendJSON(ws, 'error', { message: 'Invalid heartbeat payload' });
           return;
         }
-        getDeviceStatus({ ws, user: data.user, devices: data.devices });
+        getDeviceStatus({ ws, user: ws.user, devices: data.devices });
         break;
 
       case 'reboot':
         socketDM({ event: "reboot", recipientId: data.recipientId, clients, message: data.message, ws });
+        await reboot(ws.user.device_id)
+
         break
       case "reRead":
         ReadNotification({ developerId: ws.user.developer_id, userId: ws.user.id, ws });
