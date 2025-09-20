@@ -102,7 +102,7 @@ export const getDeviceStatus = ({ ws, user, devices = [] }) => {
   const new_state = devices.map((deviceId) => {
     return { status: connections.has(deviceId), deviceId: deviceId }
   })
-  senddeJSON(ws, "heart_beat", new_state)
+  sendJSON(ws, "heart_beat", new_state)
 }
 
 
