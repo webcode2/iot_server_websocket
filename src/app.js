@@ -85,8 +85,7 @@ wss.on('connection', async (ws, req) => {
     }
 
     try {
-      console.log(event)
-      console.log(data)
+
     switch (event) {
 
       case 'direct_message':
@@ -119,6 +118,7 @@ wss.on('connection', async (ws, req) => {
         }
         getDeviceStatus({ ws, user: data.user, devices: data.devices });
         break;
+
       case 'reboot':
         socketDM({ event: "reboot", recipientId: data.recipientId, clients, message: data.message, ws });
         break

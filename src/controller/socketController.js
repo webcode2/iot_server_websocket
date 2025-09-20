@@ -120,7 +120,6 @@ export const getDeviceStatus = ({ ws, user, devices = [] }) => {
     status: connections.has(deviceId) ? "online" : "offline",
   }));
 
-  console.log(new_state.status);
 
   sendJSON(ws, "heart_beat", new_state);
 };

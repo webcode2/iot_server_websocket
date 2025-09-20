@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "Running Drizzle migration..."
-npx drizzle-kit migrate
+# npx drizzle-kit migrate
 
 
 
