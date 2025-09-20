@@ -96,16 +96,6 @@ export const registerNewConnection = async (ws) => {
 };
 
 
-
-export const getDeviceStatus = ({ ws, user, devices = [] }) => {
-
-  const new_state = devices.map((deviceId) => {
-    return { status: connections.has(deviceId), deviceId: deviceId }
-  })
-  sendJSON(ws, "heart_beat", new_state)
-}
-
-
 export const socketDisconect = async (ws) => {
   if (!ws.user) return;
   const userId = ws.user.id;
@@ -122,6 +112,19 @@ export const socketDisconect = async (ws) => {
     }
   }
 };
+
+
+export const getDeviceStatus = ({ ws, user, devices = [] }) => {
+  const new_state = devices.map((deviceId) => ({
+    deviceId,
+    status: connections.has(deviceId) ? "online" : "offline",
+  }));
+
+  console.log(new_state);
+
+  sendJSON(ws, "heart_beat", new_state);
+};
+
 
 // Direct message: send to recipient if online
 export const socketDM = ({ recipientId, message, ws, clients, event = "direct_message" }) => {
