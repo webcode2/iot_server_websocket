@@ -25,5 +25,5 @@ RUN chmod +x ./docker_entrypoint.sh
 EXPOSE 4000
 
 # Run the entrypoint script
-# ENTRYPOINT ["./docker_entrypoint.sh"]
-CMD ["sh", "-c", "npm run seed && npm run dev"]
+ENTRYPOINT ["./docker_entrypoint.sh"]
+# CMD ["sh", "-c", "npm run seed && npm run dev"]
